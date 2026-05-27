@@ -1,1 +1,42 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>何鑫專案掌控系統</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    
+    <div id="app-container" class="block">
+        <header class="bg-slate-900 text-white p-6 shadow-lg">
+            <h1 class="text-2xl font-bold">何鑫專案掌控系統</h1>
+            <div class="mt-4 flex gap-2">
+                <button onclick="switchTab('dashboard')" class="bg-blue-600 px-4 py-2 rounded font-bold">戰情室</button>
+            </div>
+        </header>
 
+        <main class="p-6">
+            <div id="tab-dashboard" class="tab-content bg-white p-6 rounded-lg shadow">
+                <h2 class="text-xl font-bold text-gray-800">進行中工案</h2>
+                <div id="project-container" class="mt-4 text-gray-600">系統已啟動...</div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        function switchTab(tabId) {
+            console.log("切換頁面: " + tabId);
+        }
+
+        window.addEventListener('load', () => {
+            console.log("初始化完成");
+            // 強制寫入一些內容看看是否顯示
+            document.getElementById('project-container').innerHTML = 
+                "<div class='p-4 bg-green-100 text-green-800 font-bold'>系統測試：如果看到這行字，代表介面已成功載入！</div>";
+            lucide.createIcons();
+        });
+    </script>
+</body>
+</html>

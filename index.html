@@ -2,93 +2,62 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>何鑫專案掌控系統</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/lucide@latest"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700;900&display=swap');
-        body { font-family: 'Noto Sans TC', sans-serif; background-color: #f8fafc; }
+        body { background-color: #f8f9fa; font-size: 14px; }
+        .table-header { background-color: #0d6efd; color: white; }
+        .badge-done { background-color: #198754; color: white; }
+        .badge-pending { background-color: #ffc107; color: black; }
+        .project-card { border-left: 5px solid #0d6efd; }
     </style>
 </head>
-<body class="min-h-screen flex flex-col">
-
-    <header class="bg-slate-900 text-white p-6 shadow-md">
-        <h1 class="text-xl font-bold">何鑫專案掌控系統</h1>
-        <div class="mt-4 flex gap-2">
-            <button onclick="switchTab('dashboard')" class="px-3 py-1 bg-blue-600 rounded text-sm">戰情室</button>
-            <button onclick="switchTab('archived')" class="px-3 py-1 bg-slate-700 rounded text-sm">已結案</button>
-            <button onclick="openPasswordModal()" class="px-3 py-1 bg-slate-700 rounded text-sm">解鎖編輯</button>
-        </div>
-    </header>
-
-    <main class="flex-grow p-6">
-        <section id="tab-dashboard" class="tab-content">
-            <h2 class="text-lg font-bold">進行中工案</h2>
-            <div id="project-container" class="mt-4"></div>
-        </section>
-
-        <section id="tab-archived" class="tab-content hidden">
-            <h2 class="text-lg font-bold">已結案工案</h2>
-            <div id="archived-container" class="mt-4"></div>
-        </section>
-    </main>
-
-    <div id="modal-password" class="fixed inset-0 bg-black/50 flex items-center justify-center hidden">
-        <div class="bg-white p-6 rounded-lg w-80">
-            <h3 class="font-bold mb-4">輸入管理密碼</h3>
-            <input type="password" id="admin-password-input" class="border p-2 w-full mb-4">
-            <div class="flex justify-end gap-2">
-                <button onclick="closeModal('modal-password')" class="px-3 py-1 border rounded">取消</button>
-                <button onclick="handlePasswordSubmit()" class="px-3 py-1 bg-blue-600 text-white rounded">確定</button>
+<body>
+    <div class="container-fluid mt-3">
+        <div class="card shadow">
+            <div class="card-header table-header">
+                <h5 class="mb-0">專案進度詳細掌控表</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-hover table-bordered">
+                    <thead>
+                        <tr>
+                            <th>組裝編號</th>
+                            <th>圖面名稱</th>
+                            <th>數量</th>
+                            <th>製作圖</th>
+                            <th>製作進度</th>
+                            <th>出貨狀態</th>
+                        </tr>
+                    </thead>
+                    <tbody id="data-body">
+                        </tbody>
+                </table>
             </div>
         </div>
     </div>
 
     <script>
-        const ADMIN_PASSWORD = "76380260";
-        let isEditMode = false;
+        const API_URL = 'https://script.google.com/macros/s/AKfycbzPtME1leyHa8qn3-8mwqy1SJZJqiEqvcUWRweZImF0zPz4qUJsREIqAKQZaXqZoHHI/exec';
 
-        // 1. 基本切換頁面
-        function switchTab(tabId) {
-            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
-            const target = document.getElementById(`tab-${tabId}`);
-            if (target) target.classList.remove('hidden');
-            console.log("切換至: " + tabId);
-        }
-
-        // 2. 密碼鎖控制
-        function openPasswordModal() { document.getElementById('modal-password').classList.remove('hidden'); }
-        function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
-        function handlePasswordSubmit() {
-            const input = document.getElementById('admin-password-input').value;
-            if (input === ADMIN_PASSWORD) {
-                isEditMode = true;
-                alert("解鎖成功，編輯模式已開啟");
-                closeModal('modal-password');
-            } else {
-                alert("密碼錯誤");
-            }
-        }
-
-        // 3. 補齊原本遺失的所有空函式，防止按鈕點擊報錯
-        function renderDashboard() { console.log("Dashboard 已初始化"); }
-        function renderArchivedProjects() { console.log("結案頁面已初始化"); }
-        function renderTemplates() { console.log("範本庫已初始化"); }
-        function renderWeights() { console.log("權重設定已初始化"); }
-        function renderTaxonomyTab() { console.log("分類設定已初始化"); }
-        function triggerAddProject() { alert("新增工案功能"); }
-        function openAiDiagnosticModal() { alert("AI 診斷功能"); }
-        function addTaxonomyNode(level) { alert("新增節點: " + level); }
-        function triggerAddTemplate() { alert("新增範本功能"); }
-        function openAddTaxonomyItemModal() { alert("新增細項功能"); }
-
-        // 4. 啟動
-        window.addEventListener('load', () => {
-            lucide.createIcons();
-            console.log("系統啟動完成");
-        });
+        fetch(API_URL)
+            .then(res => res.json())
+            .then(data => {
+                const tbody = document.getElementById('data-body');
+                tbody.innerHTML = data.tasks.map(t => `
+                    <tr>
+                        <td>${t.組裝編號 || ''}</td>
+                        <td>${t.圖面名稱 || ''}</td>
+                        <td>${t.數量 || 0}</td>
+                        <td>${t.製作圖完成 ? '<span class="badge badge-done">已完成</span>' : '<span class="badge badge-pending">待處理</span>'}</td>
+                        <td>
+                            <div class="progress" style="height: 15px;">
+                                <div class="progress-bar" style="width: ${t.製作完工 ? '100%' : '50%'}"></div>
+                            </div>
+                        </td>
+                        <td>${t.主體配件 ? '已出貨' : '未出貨'}</td>
+                    </tr>
+                `).join('');
+            });
     </script>
 </body>
 </html>

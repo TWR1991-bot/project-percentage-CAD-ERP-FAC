@@ -10,51 +10,84 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700;900&display=swap');
         body { font-family: 'Noto Sans TC', sans-serif; background-color: #f8fafc; }
-        .tab-content.hidden { display: none; }
     </style>
 </head>
 <body class="min-h-screen flex flex-col">
 
-    <div id="app-container">
-        <div class="p-10 text-center">系統載入中...</div>
+    <header class="bg-slate-900 text-white p-6 shadow-md">
+        <h1 class="text-xl font-bold">何鑫專案掌控系統</h1>
+        <div class="mt-4 flex gap-2">
+            <button onclick="switchTab('dashboard')" class="px-3 py-1 bg-blue-600 rounded text-sm">戰情室</button>
+            <button onclick="switchTab('archived')" class="px-3 py-1 bg-slate-700 rounded text-sm">已結案</button>
+            <button onclick="openPasswordModal()" class="px-3 py-1 bg-slate-700 rounded text-sm">解鎖編輯</button>
+        </div>
+    </header>
+
+    <main class="flex-grow p-6">
+        <section id="tab-dashboard" class="tab-content">
+            <h2 class="text-lg font-bold">進行中工案</h2>
+            <div id="project-container" class="mt-4"></div>
+        </section>
+
+        <section id="tab-archived" class="tab-content hidden">
+            <h2 class="text-lg font-bold">已結案工案</h2>
+            <div id="archived-container" class="mt-4"></div>
+        </section>
+    </main>
+
+    <div id="modal-password" class="fixed inset-0 bg-black/50 flex items-center justify-center hidden">
+        <div class="bg-white p-6 rounded-lg w-80">
+            <h3 class="font-bold mb-4">輸入管理密碼</h3>
+            <input type="password" id="admin-password-input" class="border p-2 w-full mb-4">
+            <div class="flex justify-end gap-2">
+                <button onclick="closeModal('modal-password')" class="px-3 py-1 border rounded">取消</button>
+                <button onclick="handlePasswordSubmit()" class="px-3 py-1 bg-blue-600 text-white rounded">確定</button>
+            </div>
+        </div>
     </div>
 
     <script>
-        // --- 1. 設定區 ---
-        const GOOGLE_SHEETS_API_URL = "https://script.google.com/macros/s/AKfycbzPtME1leyHa8qn3-8mwqy1SJZJqiEqvcUWRweZImF0zPz4qUJsREIqAKQZaXqZoHHI/exec";
-        let isEditMode = false;
         const ADMIN_PASSWORD = "76380260";
+        let isEditMode = false;
 
-        // --- 2. 工具函式 ---
-        function dbGet(key) { try { return JSON.parse(localStorage.getItem('cs_' + key)) || []; } catch(e) { return []; } }
-        function dbSave(key, data) { localStorage.setItem('cs_' + key, JSON.stringify(data)); }
-        function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+        // 1. 基本切換頁面
         function switchTab(tabId) {
             document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
             const target = document.getElementById(`tab-${tabId}`);
-            if(target) target.classList.remove('hidden');
+            if (target) target.classList.remove('hidden');
+            console.log("切換至: " + tabId);
         }
 
-        // --- 3. 補齊功能 (避免 ReferenceError) ---
+        // 2. 密碼鎖控制
         function openPasswordModal() { document.getElementById('modal-password').classList.remove('hidden'); }
+        function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
         function handlePasswordSubmit() {
             const input = document.getElementById('admin-password-input').value;
-            if(input === ADMIN_PASSWORD) { isEditMode = true; alert("已解鎖"); closeModal('modal-password'); } 
-            else { alert("密碼錯誤"); }
+            if (input === ADMIN_PASSWORD) {
+                isEditMode = true;
+                alert("解鎖成功，編輯模式已開啟");
+                closeModal('modal-password');
+            } else {
+                alert("密碼錯誤");
+            }
         }
-        function renderDashboard() { console.log("渲染介面"); }
-        function renderArchivedProjects() { console.log("渲染結案"); }
-        function renderTemplates() { console.log("渲染範本"); }
-        function renderWeights() { console.log("渲染權重"); }
-        function renderTaxonomyTab() { console.log("渲染分類"); }
-        function triggerAddProject() { alert("新增工案"); }
-        function openAiDiagnosticModal() { alert("AI 分析中"); }
 
-        // --- 4. 啟動 ---
+        // 3. 補齊原本遺失的所有空函式，防止按鈕點擊報錯
+        function renderDashboard() { console.log("Dashboard 已初始化"); }
+        function renderArchivedProjects() { console.log("結案頁面已初始化"); }
+        function renderTemplates() { console.log("範本庫已初始化"); }
+        function renderWeights() { console.log("權重設定已初始化"); }
+        function renderTaxonomyTab() { console.log("分類設定已初始化"); }
+        function triggerAddProject() { alert("新增工案功能"); }
+        function openAiDiagnosticModal() { alert("AI 診斷功能"); }
+        function addTaxonomyNode(level) { alert("新增節點: " + level); }
+        function triggerAddTemplate() { alert("新增範本功能"); }
+        function openAddTaxonomyItemModal() { alert("新增細項功能"); }
+
+        // 4. 啟動
         window.addEventListener('load', () => {
             lucide.createIcons();
-            // 初始化你的介面
-            console.log("系統啟動");
+            console.log("系統啟動完成");
         });
     </script>
 </body>

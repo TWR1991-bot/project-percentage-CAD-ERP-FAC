@@ -1060,12 +1060,12 @@
                         let firstEq = true;
 
                         if (equip.details.length === 0) {
-                            html += renderTableRow(firstMaj, majRs, major.name, firstMed, medRs, medium.name, medium.weight, majIdx, medIdx, firstEq, eqRs, equip.name, null, null, phase, isEdit);
+                            html += renderTableRow(firstMaj, majRs, major.name, firstMed, medRs, medium.name, medium.weight, majIdx, medIdx, firstEq, eqRs, equip.name, eqIdx, null, null, null, phase, isEdit);
                             firstMaj = false; firstMed = false; firstEq = false;
                         } else {
                             equip.details.forEach((det, detIdx) => {
                                 const pId = `${majIdx}-${medIdx}-${eqIdx}-${detIdx}`;
-                                html += renderTableRow(firstMaj, majRs, major.name, firstMed, medRs, medium.name, medium.weight, majIdx, medIdx, firstEq, eqRs, equip.name, det, pId, phase, isEdit);
+                                html += renderTableRow(firstMaj, majRs, major.name, firstMed, medRs, medium.name, medium.weight, majIdx, medIdx, firstEq, eqRs, equip.name, eqIdx, det, detIdx, pId, phase, isEdit);
                                 firstMaj = false; firstMed = false; firstEq = false;
                             });
                         }
@@ -1077,7 +1077,7 @@
             container.innerHTML = html;
         }
 
-        function renderTableRow(firstMaj, majRs, majName, firstMed, medRs, medName, medWeight, majIdx, medIdx, firstEq, eqRs, eqName, det, pId, phase, isEdit) {
+        function renderTableRow(firstMaj, majRs, majName, firstMed, medRs, medName, medWeight, majIdx, medIdx, firstEq, eqRs, eqName, eqIdx, det, detIdx, pId, phase, isEdit) {
             let rowHtml = `<tr class="hover:bg-slate-50/80 transition-colors">`;
             
             if (firstMaj) {

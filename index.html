@@ -36,9 +36,9 @@
         .sticky-header th {
             position: sticky;
             top: 0;
-            z-index: 10;
-            background-color: #f8fafc;
-            box-shadow: 0 2px 4px -2px rgba(0,0,0,0.05);
+            z-index: 40 !important; /* 強制提高表頭層級，防止表身超過 */
+            box-shadow: inset 0 -2px 0 #e2e8f0;
+            background-clip: padding-box; /* 防止捲動時邊界漏色 */
         }
 
         .exporting-pdf {
@@ -104,18 +104,10 @@
         
         <!-- 視圖 1: 主視圖 -->
         <div id="view-main" class="flex-1 flex flex-col h-full w-full">
-            <header class="h-20 flex items-center justify-between px-10 z-10 shrink-0">
+            <header class="h-20 flex items-center justify-between px-10 z-10 shrink-0 border-b border-slate-100/50">
                 <h2 id="page-title" class="text-2xl font-black text-slate-800 tracking-tight">專案戰情室</h2>
-                <div class="flex items-center gap-4">
-                    <button class="w-10 h-10 rounded-full bg-white shadow-sm border border-slate-200 flex items-center justify-center text-slate-400 hover:text-indigo-500 transition-colors">
-                        <i class="fa-regular fa-bell"></i>
-                    </button>
-                    <div class="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold border-2 border-white shadow-sm">
-                        JD
-                    </div>
-                </div>
             </header>
-            <div class="flex-1 overflow-y-auto px-10 pb-10" id="main-content">
+            <div class="flex-1 overflow-y-auto px-10 pb-10 pt-6" id="main-content">
                 <!-- 內容動態生成 -->
             </div>
         </div>
@@ -219,6 +211,29 @@
 
             <div class="flex-1 overflow-y-auto p-6 bg-slate-50/50" id="template-tree-container">
                 <!-- 模板樹狀結構由 JS 生成 -->
+            </div>
+        </div>
+    </div>
+
+    <!-- 匯入設備 Modal -->
+    <div id="append-template-modal" class="hidden fixed inset-0 bg-slate-900/60 z-[60] flex justify-center items-center backdrop-blur-sm p-4">
+        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-4xl h-[80vh] flex flex-col overflow-hidden transform scale-95 transition-transform duration-300" id="append-template-content">
+            <header class="bg-gradient-to-r from-indigo-500 to-purple-600 p-6 flex justify-between items-center text-white shrink-0">
+                <div>
+                    <h3 class="text-2xl font-black tracking-tight"><i class="fa-solid fa-layer-group mr-2"></i>從模板匯入設備</h3>
+                    <p class="text-indigo-100 text-sm mt-1">勾選需要追加的設備，系統將自動為您帶入所屬的大類與中類。</p>
+                </div>
+                <button onclick="closeAppendTemplateModal()" class="w-10 h-10 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center transition-colors">
+                    <i class="fa-solid fa-xmark text-xl"></i>
+                </button>
+            </header>
+            <div class="flex-1 overflow-y-auto p-6 bg-slate-50 shadow-inner" id="append-template-list">
+                <!-- Checklist injected here -->
+            </div>
+            <div class="p-6 bg-white border-t border-slate-100 shrink-0">
+                <button onclick="confirmAppendTemplate()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-xl transition-all shadow-md shadow-indigo-200">
+                    <i class="fa-solid fa-check mr-2"></i>確認匯入
+                </button>
             </div>
         </div>
     </div>
@@ -432,61 +447,8 @@
             document.getElementById('main-content').innerHTML = html;
         }
 
-        // --- 歷史典藏 ---
-        function renderClosed(targetYear) {
-            const availableYears = [...new Set(state.closedProjects.map(p => '20' + p.id.substring(1, 3)))].sort((a,b) => b-a);
-            
-            if(availableYears.length === 0) {
-                document.getElementById('main-content').innerHTML = `<div class="text-center text-slate-400 py-20 mt-10"><i class="fa-solid fa-box-open text-6xl mb-4 block"></i>目前尚無任何歷史典藏專案</div>`;
-                return;
-            }
-
-            state.selectedYear = targetYear || availableYears[0];
-            let html = `<div class="flex gap-3 mb-8 overflow-x-auto pb-2">`;
-            
-            availableYears.forEach(y => {
-                if(y === state.selectedYear) {
-                    html += `<button onclick="renderClosed('${y}')" class="px-5 py-2.5 rounded-xl font-black bg-indigo-600 text-white shadow-md shadow-indigo-200 transition-all">${y} 年度</button>`;
-                } else {
-                    html += `<button onclick="renderClosed('${y}')" class="px-5 py-2.5 rounded-xl font-bold bg-white text-slate-500 hover:bg-slate-50 border border-slate-200 transition-all">${y} 年度</button>`;
-                }
-            });
-            html += `</div><div class="flex flex-col gap-8">`;
-            
-            AREAS.forEach(area => {
-                const areaProjects = state.closedProjects.filter(p => p.area === area && ('20' + p.id.substring(1, 3)) === state.selectedYear);
-                html += `
-                <div class="bg-white rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 overflow-hidden flex flex-col opacity-90">
-                    <div class="bg-slate-50 px-8 py-4 flex justify-between items-center border-b border-slate-100">
-                        <span class="font-bold text-lg text-slate-500 flex items-center gap-2"><div class="w-2 h-6 bg-slate-300 rounded-full"></div> ${area}</span>
-                        <span class="bg-slate-200 text-slate-600 text-sm font-bold px-3 py-1 rounded-full">${areaProjects.length} 個歸檔</span>
-                    </div>
-                    <div class="p-6 bg-white grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6">
-                `;
-
-                if (areaProjects.length === 0) {
-                    html += `<div class="col-span-full text-center text-slate-300 py-8"><i class="fa-solid fa-wind text-3xl mb-2 block"></i>無歸檔紀錄</div>`;
-                } else {
-                    areaProjects.forEach(p => {
-                        html += `
-                        <div class="bg-slate-50 border border-slate-100 p-5 rounded-2xl hover-lift relative group transition-all hover:bg-white hover:border-slate-200 flex flex-col h-full">
-                            <span class="text-sm bg-white text-slate-500 px-2 py-1 rounded border border-slate-200 font-bold w-max">${p.id}</span>
-                            <h4 class="font-black text-xl text-slate-600 mt-2 mb-3 tracking-tight truncate" title="${p.name}">${p.name}</h4>
-                            <div class="text-sm text-slate-400 mb-4 font-medium"><i class="fa-regular fa-calendar-check mr-1"></i> 結案時間: ${p.closeDate}</div>
-                            <button onclick="openProjectDetail('${p.id}', false, 'closed')" class="w-full py-2.5 text-sm bg-slate-700 hover:bg-slate-800 text-white rounded-xl font-bold transition-all shadow-sm mt-auto">
-                                <i class="fa-solid fa-book-open mr-1"></i> 翻閱報表 (可匯出)
-                            </button>
-                        </div>`;
-                    });
-                }
-                html += '</div></div>';
-            });
-            html += '</div>';
-            document.getElementById('main-content').innerHTML = html;
-        }
-
-        // --- 模板與設定 ---
-        function renderSettings() {
+        // --- 產生模板勾選清單的共用邏輯 ---
+        function generateTemplateChecklistHtml(checkboxClassPrefix) {
             let checklistHtml = '';
             if(state.templateMajors.length === 0) {
                 checklistHtml = '<div class="text-slate-400 text-sm text-center py-4">目前沒有任何模板，請先至右側「模板庫管理」建立。</div>';
@@ -494,12 +456,14 @@
                 state.templateMajors.forEach((maj, mIdx) => {
                     checklistHtml += `<div class="font-bold text-indigo-700 text-sm mb-2 mt-4 first:mt-0 px-1 border-b border-indigo-100 pb-1"><i class="fa-solid fa-folder-open mr-1"></i> ${maj.name}</div>`;
                     maj.mediums.forEach((med, medIdx) => {
+                        let medIdClass = `${checkboxClassPrefix}-med-${mIdx}-${medIdx}`;
                         checklistHtml += `
-                            <div class="font-bold text-slate-600 text-xs ml-4 mb-2 mt-2 px-1 border-l-2 border-slate-200 pl-2">
-                                ${med.name} 
+                            <div class="flex items-center font-bold text-slate-600 text-xs ml-4 mb-2 mt-2 px-1 border-l-2 border-slate-200 pl-2">
+                                <span>${med.name}</span>
                                 <span class="text-xs text-slate-400 font-normal ml-2">權重設定: ${med.weight||0}%</span>
                                 ${med.hasProduction === false ? '<span class="ml-2 text-xs text-orange-400 bg-orange-50 px-1 rounded">不生產</span>' : ''}
                                 ${med.hasShipping === false ? '<span class="ml-2 text-xs text-emerald-400 bg-emerald-50 px-1 rounded">不出貨</span>' : ''}
+                                <button onclick="selectAllInMedium('${medIdClass}')" class="ml-auto text-[10px] bg-slate-100 hover:bg-slate-200 text-slate-600 px-3 py-1 rounded transition-colors border border-slate-200 font-bold active:scale-95">全選 / 取消</button>
                             </div>`;
                         if(med.equipments.length === 0) {
                             checklistHtml += `<div class="text-slate-300 text-xs ml-8 italic mb-2">無設備</div>`;
@@ -508,7 +472,7 @@
                             let val = `${mIdx}-${medIdx}-${eqIdx}`;
                             checklistHtml += `
                                 <label class="flex items-center gap-2 text-sm ml-8 mb-2 cursor-pointer group hover:bg-slate-50 p-1.5 rounded-lg transition-colors border border-transparent hover:border-slate-200">
-                                    <input type="checkbox" value="${val}" class="template-equip-cb w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500 cursor-pointer">
+                                    <input type="checkbox" value="${val}" class="${checkboxClassPrefix}-cb ${medIdClass} w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500 cursor-pointer">
                                     <span class="text-slate-700 font-medium group-hover:text-indigo-600"><i class="fa-solid fa-box text-slate-300 mr-1 group-hover:text-indigo-300"></i> ${eq.name}</span>
                                     <span class="text-xs text-slate-400 bg-slate-100 px-2 py-0.5 rounded ml-auto">內含 ${eq.details.length} 項圖面</span>
                                 </label>
@@ -517,7 +481,17 @@
                     });
                 });
             }
+            return checklistHtml;
+        }
 
+        function selectAllInMedium(medIdClass) {
+            const checkboxes = document.querySelectorAll('.' + medIdClass);
+            let allChecked = Array.from(checkboxes).every(cb => cb.checked);
+            checkboxes.forEach(cb => cb.checked = !allChecked);
+        }
+
+        // --- 模板與設定 ---
+        function renderSettings() {
             const html = `
             <div class="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-6xl">
                 <div class="bg-white rounded-3xl shadow-sm border border-slate-100 p-8 flex flex-col h-full">
@@ -546,7 +520,7 @@
                         <div class="flex-1 flex flex-col min-h-[200px]">
                             <label class="block text-xs font-bold text-slate-500 mb-1">套用設備模板 <span class="text-slate-400 font-normal">(請勾選專案包含的設備)</span></label>
                             <div class="flex-1 overflow-y-auto border border-slate-200 rounded-xl bg-white p-3 shadow-inner">
-                                ${checklistHtml}
+                                ${generateTemplateChecklistHtml('template-equip')}
                             </div>
                         </div>
                     </div>
@@ -968,7 +942,11 @@
             document.getElementById('view-project-detail').classList.remove('hidden');
 
             document.getElementById('detail-project-id').innerText = project.id;
-            document.getElementById('detail-project-name').innerText = project.name + (sourceList === 'closed' ? ' (已歸檔)' : '');
+            
+            document.getElementById('detail-project-name').innerHTML = `
+                ${project.name} ${sourceList === 'closed' ? ' <span class="text-slate-400 text-lg font-bold">(已歸檔)</span>' : ''}
+                ${isEditMode ? `<button onclick="editProjectName()" class="ml-2 text-slate-300 hover:text-indigo-600 transition-colors align-middle" title="修改專案名稱"><i class="fa-solid fa-pen text-lg"></i></button>` : ''}
+            `;
             
             const saveBtn = document.getElementById('btn-save-detail');
             const pdfBtn = document.getElementById('btn-export-pdf');
@@ -1023,6 +1001,18 @@
             renderPhaseTable(phase);
         }
 
+        function editProjectName() {
+            let newName = prompt("請輸入新的專案名稱：", state.tempEditData.name);
+            if (newName && newName.trim() && newName.trim() !== state.tempEditData.name) {
+                state.tempEditData.name = newName.trim();
+                document.getElementById('detail-project-name').innerHTML = `
+                    ${state.tempEditData.name}
+                    <button onclick="editProjectName()" class="ml-2 text-slate-300 hover:text-indigo-600 transition-colors align-middle" title="修改專案名稱"><i class="fa-solid fa-pen text-lg"></i></button>
+                `;
+                markUnsaved();
+            }
+        }
+
         function getEquipRowspan(equip) {
             return Math.max(1, equip.details.length);
         }
@@ -1048,29 +1038,29 @@
             let colorClass = phase === 'drawing' ? 'blue' : (phase === 'production' ? 'orange' : 'emerald');
 
             if (phase === 'drawing') {
-                checklist.forEach(col => columnsHTML += `<th class="border-b-2 border-slate-200 px-3 py-4 text-center text-${colorClass}-700 font-bold bg-${colorClass}-50/50 min-w-[80px]">${col}</th>`);
+                checklist.forEach(col => columnsHTML += `<th class="border-b-2 border-slate-200 px-3 py-4 text-center text-${colorClass}-700 font-bold bg-${colorClass}-50 min-w-[80px]">${col}</th>`);
             } else if (phase === 'production') {
-                checklist.forEach(col => columnsHTML += `<th class="border-b-2 border-slate-200 px-3 py-4 text-center text-${colorClass}-700 font-bold bg-${colorClass}-50/50 min-w-[80px]">${col}</th>`);
-                columnsHTML += `<th class="border-b-2 border-slate-200 px-3 py-4 text-center text-${colorClass}-700 font-bold bg-${colorClass}-50/50 min-w-[100px]">取料預估工</th>`;
-                columnsHTML += `<th class="border-b-2 border-slate-200 px-3 py-4 text-center text-${colorClass}-700 font-bold bg-${colorClass}-50/50 min-w-[100px]">製作預估工</th>`;
+                checklist.forEach(col => columnsHTML += `<th class="border-b-2 border-slate-200 px-3 py-4 text-center text-${colorClass}-700 font-bold bg-${colorClass}-50 min-w-[80px]">${col}</th>`);
+                columnsHTML += `<th class="border-b-2 border-slate-200 px-3 py-4 text-center text-${colorClass}-700 font-bold bg-${colorClass}-50 min-w-[100px]">取料預估工</th>`;
+                columnsHTML += `<th class="border-b-2 border-slate-200 px-3 py-4 text-center text-${colorClass}-700 font-bold bg-${colorClass}-50 min-w-[100px]">製作預估工</th>`;
             } else if (phase === 'shipping') {
-                checklist.forEach(col => columnsHTML += `<th class="border-b-2 border-slate-200 px-3 py-4 text-center text-${colorClass}-700 font-bold bg-${colorClass}-50/50 min-w-[100px]">${col}</th>`);
-                columnsHTML += `<th class="border-b-2 border-slate-200 px-3 py-4 text-center text-${colorClass}-700 font-bold bg-${colorClass}-50/50 min-w-[80px]">操作</th>`;
+                checklist.forEach(col => columnsHTML += `<th class="border-b-2 border-slate-200 px-3 py-4 text-center text-${colorClass}-700 font-bold bg-${colorClass}-50 min-w-[100px]">${col}</th>`);
+                columnsHTML += `<th class="border-b-2 border-slate-200 px-3 py-4 text-center text-${colorClass}-700 font-bold bg-${colorClass}-50 min-w-[80px]">操作</th>`;
             }
 
             let html = '';
             if (isEdit) {
                 html += `
                 <div class="mb-4">
-                    <button onclick="addProjectNode('major')" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-600 px-4 py-2 rounded-xl font-bold text-sm transition-colors shadow-sm">
-                        <i class="fa-solid fa-plus mr-1"></i> 新增 大類
+                    <button onclick="openAppendTemplateModal()" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-600 px-4 py-2 rounded-xl font-bold text-sm transition-colors shadow-sm">
+                        <i class="fa-solid fa-layer-group mr-1"></i> 從模板匯入設備
                     </button>
                 </div>
                 `;
             }
 
             html += `
-            <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden w-max min-w-full">
+            <div class="bg-white shadow-sm border-b border-r border-slate-100 w-max min-w-full relative">
             <table class="w-full text-sm border-collapse" id="data-table">
                 <thead class="sticky-header">
                     <tr>
@@ -1137,8 +1127,7 @@
                                 <div class="font-black text-slate-700">${majName}</div>
                                 ${isEdit ? `
                                 <div class="flex gap-2 mt-2">
-                                    <button onclick="editProjectNode('major', ${majIdx})" title="編輯名稱" class="text-slate-400 hover:text-indigo-500 transition-colors"><i class="fa-solid fa-pen text-xs"></i></button>
-                                    <button onclick="addProjectNode('medium', ${majIdx})" title="新增中類" class="text-slate-400 hover:text-emerald-500 transition-colors"><i class="fa-solid fa-plus text-xs"></i></button>
+                                    <button onclick="editProjectNode('major', ${majIdx})" title="編輯大類名稱" class="text-slate-400 hover:text-indigo-500 transition-colors"><i class="fa-solid fa-pen text-xs"></i></button>
                                     <button onclick="deleteProjectNode('major', ${majIdx})" title="刪除大類" class="text-slate-400 hover:text-rose-500 transition-colors"><i class="fa-solid fa-trash text-xs"></i></button>
                                 </div>` : ''}
                             </td>`;
@@ -1164,8 +1153,7 @@
                                 </div>
                                 ${isEdit ? `
                                 <div class="flex gap-2 mt-3">
-                                    <button onclick="editProjectNode('medium', ${majIdx}, ${medIdx})" title="編輯名稱" class="text-slate-400 hover:text-indigo-500 transition-colors"><i class="fa-solid fa-pen text-xs"></i></button>
-                                    <button onclick="addProjectNode('equip', ${majIdx}, ${medIdx})" title="新增設備" class="text-slate-400 hover:text-emerald-500 transition-colors"><i class="fa-solid fa-plus text-xs"></i></button>
+                                    <button onclick="editProjectNode('medium', ${majIdx}, ${medIdx})" title="編輯中類名稱" class="text-slate-400 hover:text-indigo-500 transition-colors"><i class="fa-solid fa-pen text-xs"></i></button>
                                     <button onclick="deleteProjectNode('medium', ${majIdx}, ${medIdx})" title="刪除中類" class="text-slate-400 hover:text-rose-500 transition-colors"><i class="fa-solid fa-trash text-xs"></i></button>
                                 </div>` : ''}
                             </td>`;
@@ -1175,8 +1163,8 @@
                                 <div class="text-slate-600 font-bold">${eqName}</div>
                                 ${isEdit ? `
                                 <div class="flex gap-2 mt-2">
-                                    <button onclick="editProjectNode('equip', ${majIdx}, ${medIdx}, ${eqIdx})" title="編輯名稱" class="text-slate-400 hover:text-indigo-500 transition-colors"><i class="fa-solid fa-pen text-xs"></i></button>
-                                    <button onclick="addProjectNode('detail', ${majIdx}, ${medIdx}, ${eqIdx})" title="新增細項" class="text-slate-400 hover:text-emerald-500 transition-colors"><i class="fa-solid fa-plus text-xs"></i></button>
+                                    <button onclick="editProjectNode('equip', ${majIdx}, ${medIdx}, ${eqIdx})" title="編輯設備名稱" class="text-slate-400 hover:text-indigo-500 transition-colors"><i class="fa-solid fa-pen text-xs"></i></button>
+                                    <button onclick="addProjectNode('detail', ${majIdx}, ${medIdx}, ${eqIdx})" title="手動新增細項圖面" class="text-slate-400 hover:text-emerald-500 transition-colors"><i class="fa-solid fa-plus text-xs"></i></button>
                                     <button onclick="deleteProjectNode('equip', ${majIdx}, ${medIdx}, ${eqIdx})" title="刪除設備" class="text-slate-400 hover:text-rose-500 transition-colors"><i class="fa-solid fa-trash text-xs"></i></button>
                                 </div>` : ''}
                             </td>`;
@@ -1270,19 +1258,101 @@
         }
 
         // 動態編輯已建專案的節點
+        function openAppendTemplateModal() {
+            document.getElementById('append-template-list').innerHTML = generateTemplateChecklistHtml('append-template');
+            document.getElementById('append-template-modal').classList.remove('hidden');
+            setTimeout(() => {
+                document.getElementById('append-template-content').classList.remove('scale-95');
+                document.getElementById('append-template-content').classList.add('scale-100');
+            }, 10);
+        }
+
+        function closeAppendTemplateModal() {
+            document.getElementById('append-template-content').classList.add('scale-95');
+            document.getElementById('append-template-content').classList.remove('scale-100');
+            setTimeout(() => {
+                document.getElementById('append-template-modal').classList.add('hidden');
+            }, 200);
+        }
+
+        function confirmAppendTemplate() {
+            const checkedCbs = document.querySelectorAll('.append-template-cb:checked');
+            if(checkedCbs.length === 0) {
+                alert('請至少勾選一項設備！');
+                return;
+            }
+
+            let treeStruct = {}; 
+            checkedCbs.forEach(cb => {
+                let [m, med, eq] = cb.value.split('-').map(Number);
+                if(!treeStruct[m]) treeStruct[m] = {};
+                if(!treeStruct[m][med]) treeStruct[m][med] = [];
+                treeStruct[m][med].push(eq);
+            });
+
+            let addedMediums = 0;
+
+            Object.keys(treeStruct).forEach(mStr => {
+                let m = parseInt(mStr);
+                let templateMaj = state.templateMajors[m];
+                
+                let targetMaj = state.tempEditData.majors.find(x => x.name === templateMaj.name);
+                if (!targetMaj) {
+                    targetMaj = { name: templateMaj.name, mediums: [] };
+                    state.tempEditData.majors.push(targetMaj);
+                }
+
+                Object.keys(treeStruct[m]).forEach(medStr => {
+                    let med = parseInt(medStr);
+                    let templateMed = templateMaj.mediums[med];
+                    
+                    let targetMed = targetMaj.mediums.find(x => x.name === templateMed.name);
+                    if (!targetMed) {
+                        targetMed = { 
+                            name: templateMed.name, 
+                            weight: templateMed.weight || 0, 
+                            hasProduction: templateMed.hasProduction !== false,
+                            hasShipping: templateMed.hasShipping !== false,
+                            equipments: [] 
+                        };
+                        targetMaj.mediums.push(targetMed);
+                        addedMediums++;
+                    }
+
+                    treeStruct[m][med].forEach(eqIdx => {
+                        let templateEq = templateMed.equipments[eqIdx];
+                        let newEq = { name: templateEq.name, details: [] };
+
+                        templateEq.details.forEach(templateDet => {
+                            newEq.details.push({
+                                name: templateDet.name,
+                                assemblyId: templateDet.assemblyId || '', 
+                                bodyId: templateDet.bodyId || '', 
+                                version: templateDet.version || '', 
+                                qty: templateDet.qty || 1,
+                                drawing: [false, false, false, false, false, false],
+                                production: { checks: [false, false, false, false], inputs: { material: '', work: '' } },
+                                shipping: [false, false, false]
+                            });
+                        });
+                        targetMed.equipments.push(newEq);
+                    });
+                });
+            });
+
+            closeAppendTemplateModal();
+            renderPhaseTable(state.activePhaseTab);
+            markUnsaved();
+            
+            if (addedMediums > 0) {
+                alert('已匯入新項目！\n請注意檢查並調整「中類預設權重」，以確保總合為 100%。');
+            }
+        }
+
         function addProjectNode(type, m, med, eq) {
             let name;
             let hasChanged = false;
-            if(type === 'major') {
-                name = prompt('請輸入「大類」名稱：');
-                if(name && name.trim()) { state.tempEditData.majors.push({ name: name.trim(), mediums: [] }); hasChanged = true; }
-            } else if(type === 'medium') {
-                name = prompt(`新增「中類」於 [${state.tempEditData.majors[m].name}] 底下：`);
-                if(name && name.trim()) { state.tempEditData.majors[m].mediums.push({ name: name.trim(), weight: 0, hasProduction: true, hasShipping: true, equipments: [] }); hasChanged = true; }
-            } else if(type === 'equip') {
-                name = prompt(`新增「設備」於 [${state.tempEditData.majors[m].mediums[med].name}] 底下：`);
-                if(name && name.trim()) { state.tempEditData.majors[m].mediums[med].equipments.push({ name: name.trim(), details: [] }); hasChanged = true; }
-            } else if(type === 'detail') {
+            if(type === 'detail') {
                 name = prompt(`新增「細項圖面」於 [${state.tempEditData.majors[m].mediums[med].equipments[eq].name}] 底下：`);
                 if(name && name.trim()) { 
                     state.tempEditData.majors[m].mediums[med].equipments[eq].details.push({ 
@@ -1294,7 +1364,6 @@
                     hasChanged = true; 
                 }
             }
-            
             if(hasChanged) {
                 renderPhaseTable(state.activePhaseTab);
                 markUnsaved(); 

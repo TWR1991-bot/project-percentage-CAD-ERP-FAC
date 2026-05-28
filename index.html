@@ -2,62 +2,1536 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>專案進度掌控</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    
     <style>
-        body { background-color: #f8f9fa; font-size: 14px; }
-        .table-header { background-color: #0d6efd; color: white; }
-        .badge-done { background-color: #198754; color: white; }
-        .badge-pending { background-color: #ffc107; color: black; }
-        .project-card { border-left: 5px solid #0d6efd; }
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #fdfbf7; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb { background: #d6d3d1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #a8a29e; }
+        
+        .bg-healing {
+            background-color: #fdfbf7;
+            background-image: radial-gradient(#e2e8f0 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+
+        .circle-progress {
+            transition: stroke-dasharray 1s cubic-bezier(0.4, 0, 0.2, 1);
+            filter: drop-shadow(0px 2px 4px rgba(0,0,0,0.1));
+        }
+
+        .hover-lift {
+            transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease;
+        }
+        .hover-lift:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 20px -8px rgba(0,0,0,0.1);
+        }
+
+        .sticky-header th {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            background-color: #f8fafc;
+            box-shadow: 0 2px 4px -2px rgba(0,0,0,0.05);
+        }
+
+        .exporting-pdf {
+            height: auto !important;
+            overflow: visible !important;
+            position: relative !important;
+        }
+        .exporting-pdf #table-container {
+            overflow: visible !important;
+            max-height: none !important;
+        }
+
+        /* 模板樹狀線條 */
+        .tree-line {
+            position: relative;
+        }
+        .tree-line::before {
+            content: '';
+            position: absolute;
+            left: 0.75rem;
+            top: 2rem;
+            bottom: 0;
+            width: 2px;
+            background-color: #e2e8f0;
+        }
     </style>
 </head>
-<body>
-    <div class="container-fluid mt-3">
-        <div class="card shadow">
-            <div class="card-header table-header">
-                <h5 class="mb-0">專案進度詳細掌控表</h5>
+<body class="bg-healing h-screen flex overflow-hidden text-slate-700 font-sans selection:bg-indigo-100">
+
+    <!-- 全域載入動畫 (連線 Google Sheets 用) -->
+    <div id="global-loader" class="fixed inset-0 bg-white/90 backdrop-blur-sm z-[100] flex flex-col items-center justify-center transition-opacity duration-500">
+        <div class="w-16 h-16 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mb-6 shadow-lg shadow-indigo-100"></div>
+        <h2 class="text-2xl font-black text-indigo-700 tracking-wider animate-pulse">專案精靈喚醒中</h2>
+        <p class="text-slate-500 font-bold mt-2">正在與 Google Sheets 資料庫連線...</p>
+    </div>
+
+    <!-- 左側導覽列 -->
+    <nav class="w-64 bg-white flex flex-col shadow-[4px_0_24px_rgba(0,0,0,0.02)] z-20 rounded-r-3xl border-r border-slate-100 shrink-0">
+        <div class="p-8 flex items-center gap-3 border-b border-slate-100">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-400 to-purple-400 flex items-center justify-center text-white shadow-lg shadow-indigo-200">
+                <i class="fa-solid fa-layer-group text-xl"></i>
             </div>
-            <div class="card-body">
-                <table class="table table-hover table-bordered">
-                    <thead>
-                        <tr>
-                            <th>組裝編號</th>
-                            <th>圖面名稱</th>
-                            <th>數量</th>
-                            <th>製作圖</th>
-                            <th>製作進度</th>
-                            <th>出貨狀態</th>
-                        </tr>
-                    </thead>
-                    <tbody id="data-body">
-                        </tbody>
-                </table>
+            <h1 class="text-xl font-bold tracking-wider text-slate-800">專案掌控</h1>
+        </div>
+        <div class="flex-1 py-6 px-4 space-y-2">
+            <button onclick="switchTab('dashboard')" id="btn-dashboard" class="w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-left bg-indigo-50 text-indigo-600 font-bold transition-all">
+                <i class="fa-solid fa-compass w-5 text-center text-lg"></i>
+                <span>進行中專案</span>
+            </button>
+            <button onclick="switchTab('closed')" id="btn-closed" class="w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-left hover:bg-slate-50 text-slate-500 font-medium transition-all">
+                <i class="fa-solid fa-box-archive w-5 text-center text-lg"></i>
+                <span>歷史典藏</span>
+            </button>
+            <button onclick="switchTab('settings')" id="btn-settings" class="w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-left hover:bg-slate-50 text-slate-500 font-medium transition-all">
+                <i class="fa-solid fa-wand-magic-sparkles w-5 text-center text-lg"></i>
+                <span>模板與設定</span>
+            </button>
+        </div>
+    </nav>
+
+    <!-- 右側主內容區 -->
+    <main class="flex-1 flex flex-col relative min-w-0">
+        
+        <!-- 視圖 1: 主視圖 -->
+        <div id="view-main" class="flex-1 flex flex-col h-full w-full">
+            <header class="h-20 flex items-center justify-between px-10 z-10 shrink-0">
+                <h2 id="page-title" class="text-2xl font-black text-slate-800 tracking-tight">專案戰情室</h2>
+                <div class="flex items-center gap-4">
+                    <button class="w-10 h-10 rounded-full bg-white shadow-sm border border-slate-200 flex items-center justify-center text-slate-400 hover:text-indigo-500 transition-colors">
+                        <i class="fa-regular fa-bell"></i>
+                    </button>
+                    <div class="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold border-2 border-white shadow-sm">
+                        JD
+                    </div>
+                </div>
+            </header>
+            <div class="flex-1 overflow-y-auto px-10 pb-10" id="main-content">
+                <!-- 內容動態生成 -->
+            </div>
+        </div>
+
+        <!-- 視圖 2: 專案詳情與編輯 -->
+        <div id="view-project-detail" class="hidden flex-1 flex flex-col h-full w-full bg-white z-30 absolute inset-0 rounded-l-3xl shadow-[-10px_0_30px_rgba(0,0,0,0.05)]">
+            <header class="bg-gradient-to-r from-slate-50 to-white text-slate-800 p-6 flex justify-between items-center shrink-0 border-b border-slate-100">
+                <div class="flex items-center gap-4">
+                    <button onclick="backToMain()" class="w-10 h-10 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-500 transition-colors">
+                        <i class="fa-solid fa-arrow-left"></i>
+                    </button>
+                    <div>
+                        <span id="detail-project-id" class="text-xs font-bold text-indigo-500 bg-indigo-50 px-2 py-1 rounded-lg mr-2"></span>
+                        <h3 id="detail-project-name" class="text-2xl font-black inline-block tracking-tight">專案編輯</h3>
+                    </div>
+                </div>
+                
+                <div class="flex items-center gap-3">
+                    <button id="btn-export-pdf" onclick="exportToPDF()" class="hidden bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold py-2.5 px-5 rounded-xl transition-colors items-center gap-2 border border-rose-100">
+                        <i class="fa-solid fa-file-pdf"></i> 匯出 PDF
+                    </button>
+                    <button id="btn-save-detail" onclick="saveProjectData()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 px-6 rounded-xl shadow-md shadow-indigo-200 transition-all hover:-translate-y-0.5 flex items-center gap-2">
+                        <i class="fa-solid fa-check"></i> 儲存變更
+                    </button>
+                </div>
+            </header>
+
+            <div class="flex-1 flex flex-col overflow-hidden min-h-0">
+                <div class="bg-white border-b border-slate-100 shrink-0 px-8 py-6">
+                    <div class="flex gap-8 items-center justify-between">
+                        <div class="flex gap-4">
+                            <div class="bg-blue-50/50 border border-blue-100 rounded-2xl p-4 min-w-[120px] text-center">
+                                <div class="text-xs text-blue-500 font-bold mb-1">繪圖</div>
+                                <div id="detail-prog-draw" class="text-2xl font-black text-blue-600">0%</div>
+                            </div>
+                            <div class="bg-orange-50/50 border border-orange-100 rounded-2xl p-4 min-w-[120px] text-center">
+                                <div class="text-xs text-orange-500 font-bold mb-1">生產</div>
+                                <div id="detail-prog-prod" class="text-2xl font-black text-orange-600">0%</div>
+                            </div>
+                            <div class="bg-emerald-50/50 border border-emerald-100 rounded-2xl p-4 min-w-[120px] text-center">
+                                <div class="text-xs text-emerald-500 font-bold mb-1">出貨</div>
+                                <div id="detail-prog-ship" class="text-2xl font-black text-emerald-600">0%</div>
+                            </div>
+                            <div class="flex items-center mx-2 text-slate-300"><i class="fa-solid fa-chevron-right"></i></div>
+                            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 min-w-[120px] text-center shadow-sm">
+                                <div class="text-xs text-slate-500 font-bold mb-1">總體達成率</div>
+                                <div id="detail-prog-total" class="text-2xl font-black text-slate-800">0%</div>
+                            </div>
+                        </div>
+
+                        <div id="detail-weight-box" class="px-5 py-3 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center gap-4 transition-colors">
+                            <div class="w-10 h-10 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-xl">
+                                <i class="fa-solid fa-scale-balanced"></i>
+                            </div>
+                            <div>
+                                <div class="text-xs text-slate-500 font-bold">權重健康度</div>
+                                <div class="flex items-baseline gap-2">
+                                    <span id="detail-weight-text" class="text-xl font-black text-emerald-600">100%</span>
+                                    <span id="detail-weight-warning" class="hidden text-xs text-rose-500 font-bold animate-pulse">需調整為 100%</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex gap-3 mt-8">
+                        <button onclick="switchPhaseTab('drawing')" id="tab-drawing" class="px-6 py-2.5 font-bold text-blue-700 bg-blue-100 rounded-xl transition-all shadow-sm">
+                            <i class="fa-solid fa-pen-nib mr-2"></i>繪圖藍圖
+                        </button>
+                        <button onclick="switchPhaseTab('production')" id="tab-production" class="px-6 py-2.5 font-bold text-slate-500 hover:bg-slate-100 rounded-xl transition-all">
+                            <i class="fa-solid fa-hammer mr-2"></i>生產打造
+                        </button>
+                        <button onclick="switchPhaseTab('shipping')" id="tab-shipping" class="px-6 py-2.5 font-bold text-slate-500 hover:bg-slate-100 rounded-xl transition-all">
+                            <i class="fa-solid fa-paper-plane mr-2"></i>出貨啟航
+                        </button>
+                    </div>
+                </div>
+
+                <div class="flex-1 overflow-auto p-6 bg-slate-50" id="table-container"></div>
+            </div>
+        </div>
+    </main>
+
+    <!-- 模板工廠 Modal -->
+    <div id="template-modal" class="hidden fixed inset-0 bg-slate-900/60 z-50 flex justify-center items-center backdrop-blur-sm p-4">
+        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-5xl h-[85vh] flex flex-col overflow-hidden transform scale-95 transition-transform duration-300" id="template-modal-content">
+            <header class="bg-gradient-to-r from-indigo-500 to-purple-600 p-6 flex justify-between items-center text-white shrink-0">
+                <div>
+                    <h3 class="text-2xl font-black tracking-tight"><i class="fa-solid fa-cube mr-2"></i>標準模板庫管理</h3>
+                    <p class="text-indigo-100 text-sm mt-1">在這裡定義設備的層級架構，新增專案時即可一鍵帶入。</p>
+                </div>
+                <button onclick="closeTemplateModal()" class="w-10 h-10 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center transition-colors">
+                    <i class="fa-solid fa-xmark text-xl"></i>
+                </button>
+            </header>
+            
+            <div class="p-4 bg-slate-50 border-b border-slate-200 shrink-0">
+                <button onclick="addTemplateMajor()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl font-bold text-sm transition-colors shadow-sm">
+                    <i class="fa-solid fa-plus mr-1"></i> 新增 大類
+                </button>
+            </div>
+
+            <div class="flex-1 overflow-y-auto p-6 bg-slate-50/50" id="template-tree-container">
+                <!-- 模板樹狀結構由 JS 生成 -->
             </div>
         </div>
     </div>
 
     <script>
-        const API_URL = 'https://script.google.com/macros/s/AKfycbzPtME1leyHa8qn3-8mwqy1SJZJqiEqvcUWRweZImF0zPz4qUJsREIqAKQZaXqZoHHI/exec';
+        // 定義檢核項目清單常數
+        const CHECKLIST_TEMPLATES = {
+            drawing: ['製作圖進度', 'ERP製程規劃', '本體BOM', '本體計畫生產', '組裝BOM', '組裝計畫生產'],
+            production: ['製作開始', '製作完成', '組裝完成', '噴漆完成'],
+            shipping: ['主體', '周邊(含欄杆)', '市購品']
+        };
 
-        fetch(API_URL)
-            .then(res => res.json())
-            .then(data => {
-                const tbody = document.getElementById('data-body');
-                tbody.innerHTML = data.tasks.map(t => `
-                    <tr>
-                        <td>${t.組裝編號 || ''}</td>
-                        <td>${t.圖面名稱 || ''}</td>
-                        <td>${t.數量 || 0}</td>
-                        <td>${t.製作圖完成 ? '<span class="badge badge-done">已完成</span>' : '<span class="badge badge-pending">待處理</span>'}</td>
-                        <td>
-                            <div class="progress" style="height: 15px;">
-                                <div class="progress-bar" style="width: ${t.製作完工 ? '100%' : '50%'}"></div>
-                            </div>
-                        </td>
-                        <td>${t.主體配件 ? '已出貨' : '未出貨'}</td>
-                    </tr>
-                `).join('');
+        const AREAS = ['A案', 'B案', 'C案', 'D案'];
+
+        // 系統資料
+        let state = {
+            currentTab: 'dashboard',
+            editingProjectId: null,
+            isEditMode: false,
+            activePhaseTab: 'drawing', 
+            tempEditData: null,
+            selectedYear: null,
+            
+            // 模板資料庫
+            templateMajors: [
+                {
+                    name: '機甲設計',
+                    mediums: [
+                        {
+                            name: '核心動力骨架',
+                            weight: 40,
+                            equipments: [
+                                {
+                                    name: '光速推進器',
+                                    details: [
+                                        { name: '引擎噴射圖面', assemblyId: 'A-001', bodyId: 'B-001', version: 'v1.0', qty: 2 },
+                                        { name: '燃料管線圖面', assemblyId: 'A-002', bodyId: 'B-002', version: 'v1.2', qty: 10 }
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            name: '防禦裝甲',
+                            weight: 60,
+                            equipments: [
+                                {
+                                    name: '偏導盾產生器',
+                                    details: [
+                                        { name: '外層合金板', assemblyId: 'S-100', bodyId: 'S-101', version: 'v2.0', qty: 4 }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    name: 'AI大腦',
+                    mediums: [
+                        {
+                            name: '量子運算核心',
+                            weight: 100,
+                            equipments: [
+                                {
+                                    name: '神經網絡晶片櫃',
+                                    details: [
+                                        { name: '光纖配線圖', assemblyId: 'E-01', bodyId: 'E-01-A', version: 'v1.5', qty: 1 }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ],
+
+            projects: [
+                {
+                    id: 'A24001',
+                    name: '高雄一廠自動化產線',
+                    area: 'A案',
+                    status: 'active',
+                    majors: [
+                        {
+                            name: '機甲設計',
+                            mediums: [
+                                {
+                                    name: '核心動力骨架', weight: 40,
+                                    equipments: [
+                                        {
+                                            name: '光速推進器',
+                                            details: [
+                                                { 
+                                                    assemblyId: 'A-001', bodyId: 'B-001', version: 'v1.0', name: '引擎噴射圖面', qty: 2,
+                                                    drawing: [true, true, true, false, false, false],
+                                                    production: { checks: [true, false, false, false], inputs: { material: '2', work: '' } },
+                                                    shipping: [false, false, false]
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                },
+                                {
+                                    name: '防禦裝甲', weight: 60,
+                                    equipments: [
+                                        {
+                                            name: '偏導盾產生器',
+                                            details: [
+                                                { 
+                                                    assemblyId: 'S-100', bodyId: 'S-101', version: 'v2.0', name: '外層合金板', qty: 4,
+                                                    drawing: [true, true, true, true, true, true],
+                                                    production: { checks: [true, true, false, false], inputs: { material: '1', work: '3' } },
+                                                    shipping: [true, false, false]
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    id: 'B24050',
+                    name: '新竹測試產線',
+                    area: 'B案',
+                    status: 'active',
+                    majors: [
+                        {
+                            name: 'AI大腦',
+                            mediums: [
+                                {
+                                    name: '量子運算核心', weight: 100,
+                                    equipments: [
+                                        {
+                                            name: '神經網絡晶片櫃',
+                                            details: [
+                                                { 
+                                                    assemblyId: 'E-01', bodyId: 'E-01-A', version: 'v1.5', name: '光纖配線圖', qty: 1,
+                                                    drawing: [true, false, false, false, false, false],
+        <script>
+        // 定義檢核項目清單常數
+        const CHECKLIST_TEMPLATES = {
+            drawing: ['製作圖進度', 'ERP製程規劃', '本體BOM', '本體計畫生產', '組裝BOM', '組裝計畫生產'],
+            production: ['製作開始', '製作完成', '組裝完成', '噴漆完成'],
+            shipping: ['主體', '周邊(含欄杆)', '市購品']
+        };
+
+        const AREAS = ['A案', 'B案', 'C案', 'D案'];
+
+        // 將剛才部署的 Google Apps Script API 網址放在這裡
+        const API_URL = "https://script.google.com/macros/s/AKfycbyksZrGnmM62ilv7lOAho8UtHlG__Ggkzqf06p7rZ67NvyYlFu-mpmCbs8_GNJuMht22A/exec";
+
+        // 系統資料 (初始為空，將從後端抓取)
+        let state = {
+            currentTab: 'dashboard',
+            editingProjectId: null,
+            isEditMode: false,
+            activePhaseTab: 'drawing', 
+            tempEditData: null,
+            selectedYear: null,
+            templateMajors: [],
+            projects: [],
+            closedProjects: []
+        };
+
+        // --- 核心運算邏輯 ---
+        function calculateProgress(projectData) {
+            let drawTotal = 0, prodTotal = 0, shipTotal = 0;
+            let weightSum = 0;
+
+            projectData.majors.forEach(major => {
+                major.mediums.forEach(medium => {
+                    let weight = parseFloat(medium.weight) || 0;
+                    weightSum += weight;
+
+                    let equipDraw = 0, equipProd = 0, equipShip = 0;
+                    let equipCount = medium.equipments.length;
+
+                    if (equipCount > 0) {
+                        medium.equipments.forEach(eq => {
+                            let detDraw = 0, detProd = 0, detShip = 0;
+                            let detCount = eq.details.length;
+
+                            if (detCount > 0) {
+                                eq.details.forEach(det => {
+                                    detDraw += (det.drawing.filter(Boolean).length / 6) * 100;
+                                    detProd += (det.production.checks.filter(Boolean).length / 4) * 100;
+                                    detShip += (det.shipping.filter(Boolean).length / 3) * 100;
+                                });
+                                equipDraw += (detDraw / detCount);
+                                equipProd += (detProd / detCount);
+                                equipShip += (detShip / detCount);
+                            }
+                        });
+                        drawTotal += (equipDraw / equipCount) * (weight / 100);
+                        prodTotal += (equipProd / equipCount) * (weight / 100);
+                        shipTotal += (equipShip / equipCount) * (weight / 100);
+                    }
+                });
             });
+
+            let total = (drawTotal + prodTotal + shipTotal) / 3;
+            return { draw: Math.round(drawTotal), prod: Math.round(prodTotal), ship: Math.round(shipTotal), total: Math.round(total), weightSum: weightSum };
+        }
+
+        // --- 主畫面導覽邏輯 ---
+        function switchTab(tabId) {
+            state.currentTab = tabId;
+            document.getElementById('view-main').classList.remove('hidden');
+            document.getElementById('view-project-detail').classList.add('hidden');
+
+            ['dashboard', 'closed', 'settings'].forEach(id => {
+                const btn = document.getElementById(`btn-${id}`);
+                if (id === tabId) {
+                    btn.classList.add('bg-indigo-50', 'text-indigo-600', 'font-bold');
+                    btn.classList.remove('hover:bg-slate-50', 'text-slate-500', 'font-medium');
+                } else {
+                    btn.classList.remove('bg-indigo-50', 'text-indigo-600', 'font-bold');
+                    btn.classList.add('hover:bg-slate-50', 'text-slate-500', 'font-medium');
+                }
+            });
+
+            const title = document.getElementById('page-title');
+            
+            if (tabId === 'dashboard') {
+                title.innerText = '專案戰情室';
+                renderDashboard();
+            } else if (tabId === 'closed') {
+                title.innerText = '歷史典藏館';
+                renderClosed();
+            } else {
+                title.innerText = '模板與設定中心';
+                renderSettings();
+            }
+        }
+
+        // --- 戰情室 (垂直排列 A,B,C,D，內部卡片水平排列至多4個) ---
+        function renderDashboard() {
+            let html = '<div class="flex flex-col gap-8">';
+            AREAS.forEach(area => {
+                const areaProjects = state.projects.filter(p => p.area === area && p.status === 'active');
+                html += `
+                <div class="bg-white rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 overflow-hidden flex flex-col">
+                    <div class="bg-slate-50 px-8 py-5 flex justify-between items-center border-b border-slate-100">
+                        <span class="font-bold text-lg text-slate-700 flex items-center gap-2"><div class="w-2 h-6 bg-indigo-400 rounded-full"></div> ${area}</span>
+                        <span class="bg-indigo-100 text-indigo-700 text-sm font-bold px-3 py-1 rounded-full">${areaProjects.length} 個專案</span>
+                    </div>
+                    <div class="p-6 bg-white grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6">
+                `;
+
+                if (areaProjects.length === 0) {
+                    html += `<div class="col-span-full text-center text-slate-300 py-10"><i class="fa-solid fa-ghost text-4xl mb-3 block"></i>目前靜悄悄的</div>`;
+                } else {
+                    areaProjects.forEach(project => {
+                        const prog = calculateProgress(project);
+                        html += `
+                        <div class="bg-white border border-slate-100 p-5 rounded-2xl shadow-sm hover-lift relative overflow-hidden group flex flex-col h-full">
+                            <div class="flex justify-between items-start mb-4">
+                                <div class="min-w-0 pr-2">
+                                    <span class="text-sm font-bold text-indigo-400 bg-indigo-50 px-2 py-1 rounded-md">${project.id}</span>
+                                    <h4 class="font-black text-lg text-slate-800 mt-2 tracking-tight truncate" title="${project.name}">${project.name}</h4>
+                                </div>
+                                <div class="relative w-14 h-14 flex items-center justify-center shrink-0">
+                                    <svg class="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
+                                        <path class="text-slate-100" stroke-width="3" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                                        <path class="text-indigo-500 circle-progress drop-shadow-sm" stroke-dasharray="${prog.total}, 100" stroke-width="4" stroke="currentColor" fill="none" stroke-linecap="round" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                                    </svg>
+                                    <div class="absolute text-sm font-black text-slate-700">${prog.total}%</div>
+                                </div>
+                            </div>
+
+                            <div class="space-y-3 mb-5 flex-1">
+                                <div class="flex items-center gap-2">
+                                    <span class="w-14 shrink-0 whitespace-nowrap text-sm text-slate-400 font-bold"><i class="fa-solid fa-pen-nib text-blue-400"></i> 繪圖</span>
+                                    <div class="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
+                                        <div class="h-full bg-gradient-to-r from-blue-400 to-blue-500 rounded-full" style="width: ${prog.draw}%"></div>
+                                    </div>
+                                    <span class="w-10 text-right text-sm font-bold text-slate-600">${prog.draw}%</span>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <span class="w-14 shrink-0 whitespace-nowrap text-sm text-slate-400 font-bold"><i class="fa-solid fa-hammer text-orange-400"></i> 生產</span>
+                                    <div class="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
+                                        <div class="h-full bg-gradient-to-r from-orange-400 to-orange-500 rounded-full" style="width: ${prog.prod}%"></div>
+                                    </div>
+                                    <span class="w-10 text-right text-sm font-bold text-slate-600">${prog.prod}%</span>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <span class="w-14 shrink-0 whitespace-nowrap text-sm text-slate-400 font-bold"><i class="fa-solid fa-paper-plane text-emerald-400"></i> 出貨</span>
+                                    <div class="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
+                                        <div class="h-full bg-gradient-to-r from-emerald-400 to-emerald-500 rounded-full" style="width: ${prog.ship}%"></div>
+                                    </div>
+                                    <span class="w-10 text-right text-sm font-bold text-slate-600">${prog.ship}%</span>
+                                </div>
+                            </div>
+
+                            <div class="flex gap-2 pt-3 border-t border-slate-50 mt-auto">
+                                <button onclick="openProjectDetail('${project.id}', false, 'active')" class="flex-1 py-1.5 text-sm bg-slate-50 hover:bg-slate-100 text-slate-600 rounded-lg font-bold transition-colors"><i class="fa-regular fa-eye mr-1"></i> 檢視</button>
+                                <button onclick="openProjectDetail('${project.id}', true, 'active')" class="flex-1 py-1.5 text-sm bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-lg font-bold transition-colors"><i class="fa-solid fa-pen mr-1"></i> 編輯</button>
+                                <button onclick="closeProject('${project.id}')" class="px-3 py-1.5 text-sm bg-white hover:bg-emerald-50 text-slate-300 hover:text-emerald-500 rounded-lg transition-colors border border-slate-100" title="結案歸檔"><i class="fa-solid fa-box-archive"></i></button>
+                                <button onclick="deleteProject('${project.id}')" class="px-3 py-1.5 text-sm bg-white hover:bg-rose-50 text-slate-300 hover:text-rose-500 rounded-lg transition-colors border border-slate-100" title="刪除專案"><i class="fa-solid fa-trash-can"></i></button>
+                            </div>
+                        </div>`;
+                    });
+                }
+                html += '</div></div>';
+            });
+            html += '</div>';
+            document.getElementById('main-content').innerHTML = html;
+        }
+
+        // --- 歷史典藏 ---
+        function renderClosed(targetYear) {
+            const availableYears = [...new Set(state.closedProjects.map(p => '20' + p.id.substring(1, 3)))].sort((a,b) => b-a);
+            
+            if(availableYears.length === 0) {
+                document.getElementById('main-content').innerHTML = `<div class="text-center text-slate-400 py-20 mt-10"><i class="fa-solid fa-box-open text-6xl mb-4 block"></i>目前尚無任何歷史典藏專案</div>`;
+                return;
+            }
+
+            state.selectedYear = targetYear || availableYears[0];
+            let html = `<div class="flex gap-3 mb-8 overflow-x-auto pb-2">`;
+            
+            availableYears.forEach(y => {
+                if(y === state.selectedYear) {
+                    html += `<button onclick="renderClosed('${y}')" class="px-5 py-2.5 rounded-xl font-black bg-indigo-600 text-white shadow-md shadow-indigo-200 transition-all">${y} 年度</button>`;
+                } else {
+                    html += `<button onclick="renderClosed('${y}')" class="px-5 py-2.5 rounded-xl font-bold bg-white text-slate-500 hover:bg-slate-50 border border-slate-200 transition-all">${y} 年度</button>`;
+                }
+            });
+            html += `</div><div class="flex flex-col gap-8">`;
+            
+            AREAS.forEach(area => {
+                const areaProjects = state.closedProjects.filter(p => p.area === area && ('20' + p.id.substring(1, 3)) === state.selectedYear);
+                html += `
+                <div class="bg-white rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 overflow-hidden flex flex-col opacity-90">
+                    <div class="bg-slate-50 px-8 py-4 flex justify-between items-center border-b border-slate-100">
+                        <span class="font-bold text-lg text-slate-500 flex items-center gap-2"><div class="w-2 h-6 bg-slate-300 rounded-full"></div> ${area}</span>
+                        <span class="bg-slate-200 text-slate-600 text-sm font-bold px-3 py-1 rounded-full">${areaProjects.length} 個歸檔</span>
+                    </div>
+                    <div class="p-6 bg-white grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6">
+                `;
+
+                if (areaProjects.length === 0) {
+                    html += `<div class="col-span-full text-center text-slate-300 py-8"><i class="fa-solid fa-wind text-3xl mb-2 block"></i>無歸檔紀錄</div>`;
+                } else {
+                    areaProjects.forEach(p => {
+                        html += `
+                        <div class="bg-slate-50 border border-slate-100 p-5 rounded-2xl hover-lift relative group transition-all hover:bg-white hover:border-slate-200 flex flex-col h-full">
+                            <span class="text-sm bg-white text-slate-500 px-2 py-1 rounded border border-slate-200 font-bold w-max">${p.id}</span>
+                            <h4 class="font-black text-xl text-slate-600 mt-2 mb-3 tracking-tight truncate" title="${p.name}">${p.name}</h4>
+                            <div class="text-base text-slate-400 mb-4 font-medium"><i class="fa-regular fa-calendar-check mr-1"></i> 結案時間: ${p.closeDate}</div>
+                            <button onclick="openProjectDetail('${p.id}', false, 'closed')" class="w-full py-2.5 text-base bg-slate-700 hover:bg-slate-800 text-white rounded-xl font-bold transition-all shadow-sm mt-auto">
+                                <i class="fa-solid fa-book-open mr-1"></i> 翻閱報表 (可匯出)
+                            </button>
+                        </div>`;
+                    });
+                }
+                html += '</div></div>';
+            });
+            html += '</div>';
+            document.getElementById('main-content').innerHTML = html;
+        }
+
+
+        // --- 模板與設定 (新增工案 & 呼叫模板工廠) ---
+        function renderSettings() {
+            let checklistHtml = '';
+            if(state.templateMajors.length === 0) {
+                checklistHtml = '<div class="text-slate-400 text-sm text-center py-4">目前沒有任何模板，請先至右側「模板庫管理」建立。</div>';
+            } else {
+                state.templateMajors.forEach((maj, mIdx) => {
+                    checklistHtml += `<div class="font-bold text-indigo-700 text-sm mb-2 mt-4 first:mt-0 px-1 border-b border-indigo-100 pb-1"><i class="fa-solid fa-folder-open mr-1"></i> ${maj.name}</div>`;
+                    maj.mediums.forEach((med, medIdx) => {
+                        checklistHtml += `<div class="font-bold text-slate-600 text-xs ml-4 mb-2 mt-2 px-1 border-l-2 border-slate-200 pl-2">${med.name} <span class="text-xs text-slate-400 font-normal ml-2">權重設定: ${med.weight||0}%</span></div>`;
+                        if(med.equipments.length === 0) {
+                            checklistHtml += `<div class="text-slate-300 text-xs ml-8 italic mb-2">無設備</div>`;
+                        }
+                        med.equipments.forEach((eq, eqIdx) => {
+                            let val = `${mIdx}-${medIdx}-${eqIdx}`;
+                            checklistHtml += `
+                                <label class="flex items-center gap-2 text-sm ml-8 mb-2 cursor-pointer group hover:bg-slate-50 p-1.5 rounded-lg transition-colors border border-transparent hover:border-slate-200">
+                                    <input type="checkbox" value="${val}" class="template-equip-cb w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500 cursor-pointer">
+                                    <span class="text-slate-700 font-medium group-hover:text-indigo-600"><i class="fa-solid fa-box text-slate-300 mr-1 group-hover:text-indigo-300"></i> ${eq.name}</span>
+                                    <span class="text-xs text-slate-400 bg-slate-100 px-2 py-0.5 rounded ml-auto">內含 ${eq.details.length} 項圖面</span>
+                                </label>
+                            `;
+                        });
+                    });
+                });
+            }
+
+            const html = `
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-6xl">
+                <!-- 建立新專案 -->
+                <div class="bg-white rounded-3xl shadow-sm border border-slate-100 p-8 flex flex-col h-full">
+                    <div class="w-12 h-12 bg-indigo-100 text-indigo-500 rounded-2xl flex items-center justify-center text-2xl mb-6 shrink-0">
+                        <i class="fa-solid fa-plus"></i>
+                    </div>
+                    <h3 class="text-2xl font-black text-slate-800 mb-2">建立全新工案</h3>
+                    <p class="text-slate-500 mb-6 leading-relaxed text-sm">輸入編號並勾選需要的設備模板，系統將自動為您展開完整的任務檢核表。</p>
+                    
+                    <div class="space-y-4 mb-6 flex-1 flex flex-col">
+                        <div class="flex gap-4">
+                            <div class="flex-1">
+                                <label class="block text-xs font-bold text-slate-500 mb-1">專案編號 <span class="text-indigo-400 font-normal">(首碼決定A/B/C/D案)</span></label>
+                                <input type="text" id="new-proj-id" placeholder="例如：B24001" oninput="autoDetectArea(this.value)" class="w-full border border-slate-200 rounded-xl px-4 py-2.5 bg-slate-50 focus:bg-white focus:outline-none focus:border-indigo-400 font-black text-slate-700 uppercase">
+                            </div>
+                            <div class="w-32 shrink-0">
+                                <label class="block text-xs font-bold text-slate-500 mb-1">系統判定區域</label>
+                                <input type="text" id="new-proj-area" readonly placeholder="-" class="w-full border border-slate-200 rounded-xl px-4 py-2.5 bg-slate-100 text-slate-400 font-bold focus:outline-none text-center">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 mb-1">專案名稱</label>
+                            <input type="text" id="new-proj-name" placeholder="輸入易懂的專案名稱" class="w-full border border-slate-200 rounded-xl px-4 py-2.5 bg-slate-50 focus:bg-white focus:outline-none focus:border-indigo-400 font-bold text-slate-700">
+                        </div>
+                        
+                        <div class="flex-1 flex flex-col min-h-[200px]">
+                            <label class="block text-xs font-bold text-slate-500 mb-1">套用設備模板 <span class="text-slate-400 font-normal">(請勾選專案包含的設備)</span></label>
+                            <div class="flex-1 overflow-y-auto border border-slate-200 rounded-xl bg-white p-3 shadow-inner">
+                                ${checklistHtml}
+                            </div>
+                        </div>
+                    </div>
+                    <button onclick="createNewProject()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3.5 px-6 rounded-xl transition-all shadow-md shadow-indigo-200 flex items-center justify-center gap-2 shrink-0 mt-auto">
+                        <i class="fa-solid fa-wand-magic-sparkles"></i> 召喚並展開新專案
+                    </button>
+                </div>
+
+                <!-- 管理標準模板 -->
+                <div class="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-3xl shadow-lg border border-indigo-400 p-8 text-white relative overflow-hidden flex flex-col h-full hover-lift">
+                    <div class="absolute -right-10 -top-10 text-white/10 text-9xl pointer-events-none">
+                        <i class="fa-solid fa-cube"></i>
+                    </div>
+                    <div class="relative z-10 flex flex-col h-full">
+                        <div class="w-12 h-12 bg-white/20 backdrop-blur text-white rounded-2xl flex items-center justify-center text-2xl mb-6 border border-white/30 shrink-0">
+                            <i class="fa-solid fa-sitemap"></i>
+                        </div>
+                        <h3 class="text-2xl font-black mb-2">標準模板庫管理</h3>
+                        <p class="text-indigo-100 mb-8 leading-relaxed text-sm">建立並維護您的標準「大類 > 中類 > 設備 > 細項」樹狀結構，並可預設占比與編號。</p>
+                        
+                        <div class="bg-white/10 rounded-2xl p-5 border border-white/20 mb-8 flex-1">
+                            <div class="text-center text-indigo-100 text-sm mt-4">
+                                <i class="fa-solid fa-database text-4xl mb-3 opacity-50 block"></i>
+                                目前系統已建立 <strong class="text-white text-lg">${state.templateMajors.length}</strong> 個大類模板
+                            </div>
+                        </div>
+
+                        <button onclick="openTemplateModal()" class="w-full bg-white text-indigo-600 font-bold py-3.5 px-6 rounded-xl hover:bg-indigo-50 transition-all shadow-lg shrink-0 mt-auto flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-wrench"></i> 進入模板工廠進行編輯
+                        </button>
+                    </div>
+                </div>
+            </div>`;
+            document.getElementById('main-content').innerHTML = html;
+        }
+
+        function autoDetectArea(val) {
+            const el = document.getElementById('new-proj-area');
+            if(!val || val.length === 0) { 
+                el.value = ''; 
+                el.className = 'w-full border border-slate-200 rounded-xl px-4 py-2.5 bg-slate-100 text-slate-400 font-bold focus:outline-none text-center transition-colors';
+                return; 
+            }
+            const firstChar = val.charAt(0).toUpperCase();
+            if(['A', 'B', 'C', 'D'].includes(firstChar)) {
+                el.value = firstChar + '案';
+                el.className = 'w-full border border-indigo-200 rounded-xl px-4 py-2.5 bg-indigo-50 text-indigo-700 font-black focus:outline-none text-center transition-colors';
+            } else {
+                el.value = '格式錯誤';
+                el.className = 'w-full border border-rose-200 rounded-xl px-4 py-2.5 bg-rose-50 text-rose-600 font-bold focus:outline-none text-center transition-colors';
+            }
+        }
+
+        // --- 核心：動態產生新專案邏輯 ---
+        async function createNewProject() {
+            const idVal = document.getElementById('new-proj-id').value.trim().toUpperCase();
+            const nameVal = document.getElementById('new-proj-name').value.trim();
+            const areaVal = document.getElementById('new-proj-area').value;
+
+            if(!idVal || !nameVal || areaVal === '格式錯誤' || areaVal === '') {
+                alert('請確實填寫正確的專案編號 (首碼A/B/C/D) 與專案名稱！');
+                return;
+            }
+            if(state.projects.find(p => p.id === idVal) || state.closedProjects.find(p => p.id === idVal)) {
+                alert('專案編號已存在於進行中或歷史資料庫中，請更換！');
+                return;
+            }
+
+            const checkedCbs = document.querySelectorAll('.template-equip-cb:checked');
+            if(checkedCbs.length === 0) {
+                alert('請至少勾選一項設備模板！');
+                return;
+            }
+
+            let treeStruct = {}; 
+            checkedCbs.forEach(cb => {
+                let [m, med, eq] = cb.value.split('-').map(Number);
+                if(!treeStruct[m]) treeStruct[m] = {};
+                if(!treeStruct[m][med]) treeStruct[m][med] = [];
+                treeStruct[m][med].push(eq);
+            });
+
+            let newMajors = [];
+            Object.keys(treeStruct).forEach(mStr => {
+                let m = parseInt(mStr);
+                let templateMaj = state.templateMajors[m];
+                let newMaj = { name: templateMaj.name, mediums: [] };
+
+                Object.keys(treeStruct[m]).forEach(medStr => {
+                    let med = parseInt(medStr);
+                    let templateMed = templateMaj.mediums[med];
+                    let newMed = { name: templateMed.name, weight: templateMed.weight || 0, equipments: [] };
+
+                    treeStruct[m][med].forEach(eqIdx => {
+                        let templateEq = templateMed.equipments[eqIdx];
+                        let newEq = { name: templateEq.name, details: [] };
+
+                        templateEq.details.forEach(templateDet => {
+                            newEq.details.push({
+                                name: templateDet.name,
+                                assemblyId: templateDet.assemblyId || '', 
+                                bodyId: templateDet.bodyId || '', 
+                                version: templateDet.version || '', 
+                                qty: templateDet.qty || 1,
+                                drawing: [false, false, false, false, false, false],
+                                production: { checks: [false, false, false, false], inputs: { material: '', work: '' } },
+                                shipping: [false, false, false]
+                            });
+                        });
+                        newMed.equipments.push(newEq);
+                    });
+                    newMaj.mediums.push(newMed);
+                });
+                newMajors.push(newMaj);
+            });
+
+            const newProject = {
+                id: idVal,
+                name: nameVal,
+                area: areaVal,
+                status: 'active',
+                majors: newMajors
+            };
+
+            const btn = document.querySelector('button[onclick="createNewProject()"]');
+            const origHtml = btn.innerHTML;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 藍圖繪製並上傳至雲端中...';
+            btn.disabled = true;
+
+            try {
+                const response = await fetch(`${API_URL}?action=saveProject`, {
+                    method: 'POST',
+                    body: JSON.stringify(newProject)
+                });
+                const res = await response.json();
+                if(res.status === 'success') {
+                    state.projects.push(newProject);
+                    alert(`成功！專案 [${idVal}] 已建立，並且自動套用了模板與寫入資料庫！`);
+                    switchTab('dashboard');
+                } else {
+                    alert('資料庫寫入失敗：' + res.message);
+                }
+            } catch (error) {
+                alert('網路連線異常，請稍後再試。');
+            } finally {
+                btn.innerHTML = origHtml;
+                btn.disabled = false;
+            }
+        }
+
+        // --- 同步模板資料至後端 ---
+        async function syncTemplatesToBackend() {
+            try {
+                await fetch(`${API_URL}?action=saveTemplates`, {
+                    method: 'POST',
+                    body: JSON.stringify(state.templateMajors)
+                });
+            } catch (error) {
+                console.error("模板自動同步失敗", error);
+            }
+        }
+
+
+        // --- 模板工廠 Modal 管理邏輯 ---
+        function openTemplateModal() {
+            document.getElementById('template-modal').classList.remove('hidden');
+            setTimeout(() => {
+                document.getElementById('template-modal-content').classList.remove('scale-95');
+                document.getElementById('template-modal-content').classList.add('scale-100');
+            }, 10);
+            renderTemplateTree();
+        }
+
+        function closeTemplateModal() {
+            document.getElementById('template-modal-content').classList.add('scale-95');
+            document.getElementById('template-modal-content').classList.remove('scale-100');
+            setTimeout(() => {
+                document.getElementById('template-modal').classList.add('hidden');
+                if(state.currentTab === 'settings') renderSettings();
+            }, 200);
+        }
+
+        function updateTemplateField(type, m, med, eq, det, field, value) {
+            if (type === 'medium') {
+                state.templateMajors[m].mediums[med][field] = parseFloat(value) || 0;
+            } else if (type === 'detail') {
+                if (field === 'qty') {
+                    state.templateMajors[m].mediums[med].equipments[eq].details[det][field] = parseInt(value) || 0;
+                } else {
+                    state.templateMajors[m].mediums[med].equipments[eq].details[det][field] = value;
+                }
+            }
+        }
+
+        function renderTemplateTree() {
+            const container = document.getElementById('template-tree-container');
+            if(state.templateMajors.length === 0) {
+                container.innerHTML = '<div class="text-center text-slate-400 py-20">目前沒有任何模板，請點擊上方按鈕建立第一個大類。</div>';
+                return;
+            }
+
+            let html = '<div class="space-y-6">';
+            state.templateMajors.forEach((maj, mIdx) => {
+                html += `
+                <div class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+                    <div class="flex items-center justify-between mb-4 pb-2 border-b border-slate-100">
+                        <div class="font-black text-lg text-indigo-700 flex items-center gap-2">
+                            <i class="fa-solid fa-folder-open text-indigo-400"></i> ${maj.name}
+                            <button onclick="editTemplateNode('major', ${mIdx})" class="text-indigo-300 hover:text-indigo-600 ml-1 transition-colors" title="編輯名稱"><i class="fa-solid fa-pen text-sm"></i></button>
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="addTemplateNode('medium', ${mIdx})" class="text-xs bg-indigo-50 hover:bg-indigo-100 text-indigo-600 px-3 py-1.5 rounded font-bold transition-colors">+ 中類</button>
+                            <button onclick="deleteTemplateNode('major', ${mIdx})" class="text-xs bg-white hover:bg-rose-50 text-slate-400 hover:text-rose-500 px-3 py-1.5 rounded border transition-colors border-slate-200"><i class="fa-solid fa-trash-can"></i></button>
+                        </div>
+                    </div>
+                    
+                    <div class="pl-4 tree-line space-y-4">
+                `;
+                
+                if(maj.mediums.length === 0) html += `<div class="text-slate-400 text-sm italic py-2">無中類資料</div>`;
+
+                maj.mediums.forEach((med, medIdx) => {
+                    html += `
+                    <div class="relative bg-slate-50 border border-slate-200 rounded-lg p-4 ml-6">
+                        <div class="absolute -left-6 top-6 w-6 h-0.5 bg-slate-200"></div>
+                        
+                        <div class="flex items-center justify-between mb-3 border-b border-slate-100 pb-2">
+                            <div class="font-bold text-slate-700 text-sm flex items-center gap-2">
+                                <span><i class="fa-solid fa-layer-group text-slate-400 mr-1"></i> ${med.name}</span>
+                                <button onclick="editTemplateNode('medium', ${mIdx}, ${medIdx})" class="text-slate-300 hover:text-indigo-500 transition-colors" title="編輯名稱"><i class="fa-solid fa-pen text-xs"></i></button>
+                            </div>
+                            <div class="flex gap-4 items-center">
+                                <div class="flex items-center gap-1 bg-white px-2 py-1 rounded border border-slate-200 shadow-sm">
+                                    <span class="text-xs text-slate-400 font-bold">預設權重</span>
+                                    <input type="number" min="0" max="100" value="${med.weight || 0}" onchange="updateTemplateField('medium', ${mIdx}, ${medIdx}, 0, 0, 'weight', this.value)" class="w-12 text-center text-sm font-bold text-indigo-600 focus:outline-none focus:border-indigo-400 border border-transparent rounded">
+                                    <span class="text-xs text-slate-400">%</span>
+                                </div>
+                                <div class="flex gap-2">
+                                    <button onclick="addTemplateNode('equip', ${mIdx}, ${medIdx})" class="text-xs bg-white border border-slate-200 hover:bg-slate-100 text-slate-600 px-2 py-1 rounded font-bold transition-colors">+ 設備</button>
+                                    <button onclick="deleteTemplateNode('medium', ${mIdx}, ${medIdx})" class="text-xs text-slate-400 hover:text-rose-500 px-2 py-1 transition-colors"><i class="fa-solid fa-xmark"></i></button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="space-y-3 pl-2">
+                    `;
+
+                    if(med.equipments.length === 0) html += `<div class="text-slate-400 text-xs italic">無設備資料</div>`;
+
+                    med.equipments.forEach((eq, eqIdx) => {
+                        html += `
+                        <div class="bg-white border border-slate-100 rounded p-3 shadow-sm flex flex-col gap-2">
+                            <div class="flex items-center justify-between">
+                                <div class="font-bold text-slate-600 text-sm flex items-center gap-2">
+                                    <span><i class="fa-solid fa-box text-slate-300 mr-1"></i> ${eq.name}</span>
+                                    <button onclick="editTemplateNode('equip', ${mIdx}, ${medIdx}, ${eqIdx})" class="text-slate-300 hover:text-indigo-500 transition-colors" title="編輯名稱"><i class="fa-solid fa-pen text-xs"></i></button>
+                                </div>
+                                <div class="flex gap-2">
+                                    <button onclick="addTemplateNode('detail', ${mIdx}, ${medIdx}, ${eqIdx})" class="text-xs bg-blue-50 text-blue-600 hover:bg-blue-100 px-3 py-1 rounded font-bold transition-colors">+ 細項圖面</button>
+                                    <button onclick="deleteTemplateNode('equip', ${mIdx}, ${medIdx}, ${eqIdx})" class="text-xs text-slate-400 hover:text-rose-500 px-2 py-1 transition-colors"><i class="fa-solid fa-xmark"></i></button>
+                                </div>
+                            </div>
+                            
+                            <div class="flex flex-col gap-2 mt-2">
+                        `;
+                        
+                        if(eq.details.length === 0) html += `<span class="text-slate-400 text-xs italic">未設定細項</span>`;
+
+                        eq.details.forEach((det, detIdx) => {
+                            let aId = det.assemblyId || '';
+                            let bId = det.bodyId || '';
+                            let ver = det.version || '';
+                            let qty = det.qty || 1;
+
+                            html += `
+                                <div class="bg-slate-50 border border-slate-200 p-3 rounded-lg flex flex-col gap-3 relative group/det">
+                                    <div class="flex items-center justify-between">
+                                        <div class="font-bold text-slate-700 text-xs flex items-center gap-1">
+                                            <i class="fa-regular fa-file-lines text-slate-400"></i> ${det.name}
+                                        </div>
+                                        <div class="flex gap-2">
+                                            <button onclick="editTemplateNode('detail', ${mIdx}, ${medIdx}, ${eqIdx}, ${detIdx})" class="text-slate-400 hover:text-indigo-500 transition-colors" title="編輯名稱"><i class="fa-solid fa-pen text-xs"></i></button>
+                                            <button onclick="deleteTemplateNode('detail', ${mIdx}, ${medIdx}, ${eqIdx}, ${detIdx})" class="text-slate-400 hover:text-rose-500 transition-colors" title="刪除"><i class="fa-solid fa-xmark text-xs"></i></button>
+                                        </div>
+                                    </div>
+                                    <div class="grid grid-cols-4 gap-3">
+                                        <div>
+                                            <label class="block text-xs text-slate-400 mb-1 font-bold">組裝編號</label>
+                                            <input type="text" value="${aId}" onchange="updateTemplateField('detail', ${mIdx}, ${medIdx}, ${eqIdx}, ${detIdx}, 'assemblyId', this.value)" class="w-full text-xs px-2 py-1.5 border border-slate-200 rounded focus:border-indigo-400 focus:outline-none" placeholder="-">
+                                        </div>
+                                        <div>
+                                            <label class="block text-xs text-slate-400 mb-1 font-bold">本體編號</label>
+                                            <input type="text" value="${bId}" onchange="updateTemplateField('detail', ${mIdx}, ${medIdx}, ${eqIdx}, ${detIdx}, 'bodyId', this.value)" class="w-full text-xs px-2 py-1.5 border border-slate-200 rounded focus:border-indigo-400 focus:outline-none" placeholder="-">
+                                        </div>
+                                        <div>
+                                            <label class="block text-xs text-slate-400 mb-1 font-bold">版本</label>
+                                            <input type="text" value="${ver}" onchange="updateTemplateField('detail', ${mIdx}, ${medIdx}, ${eqIdx}, ${detIdx}, 'version', this.value)" class="w-full text-xs px-2 py-1.5 border border-slate-200 rounded text-center focus:border-indigo-400 focus:outline-none" placeholder="-">
+                                        </div>
+                                        <div>
+                                            <label class="block text-xs text-slate-400 mb-1 font-bold">數量</label>
+                                            <input type="number" min="0" value="${qty}" onchange="updateTemplateField('detail', ${mIdx}, ${medIdx}, ${eqIdx}, ${detIdx}, 'qty', this.value)" class="w-full text-xs px-2 py-1.5 border border-slate-200 rounded text-center focus:border-indigo-400 focus:outline-none">
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                        });
+                        html += `</div></div>`;
+                    });
+                    html += `</div></div>`;
+                });
+                html += `</div></div>`;
+            });
+            html += '</div>';
+            container.innerHTML = html;
+        }
+
+        // 新增節點 (簡易 Prompt)
+        function addTemplateMajor() {
+            let name = prompt('請輸入「大類」名稱：\n(如：機構設計、電控系統)');
+            if(name && name.trim()) {
+                state.templateMajors.push({ name: name.trim(), mediums: [] });
+                renderTemplateTree();
+                syncTemplatesToBackend();
+            }
+        }
+        function addTemplateNode(type, m, med, eq) {
+            let name;
+            let hasChanged = false;
+            if(type === 'medium') {
+                name = prompt(`新增「中類」於 [${state.templateMajors[m].name}] 底下：`);
+                if(name && name.trim()) { state.templateMajors[m].mediums.push({ name: name.trim(), weight: 0, equipments: [] }); hasChanged = true; }
+            } else if(type === 'equip') {
+                name = prompt(`新增「設備」於 [${state.templateMajors[m].mediums[med].name}] 底下：`);
+                if(name && name.trim()) { state.templateMajors[m].mediums[med].equipments.push({ name: name.trim(), details: [] }); hasChanged = true; }
+            } else if(type === 'detail') {
+                name = prompt(`新增「細項圖面」於 [${state.templateMajors[m].mediums[med].equipments[eq].name}] 底下：`);
+                if(name && name.trim()) { state.templateMajors[m].mediums[med].equipments[eq].details.push({ name: name.trim(), assemblyId: '', bodyId: '', version: '', qty: 1 }); hasChanged = true; }
+            }
+            
+            if(hasChanged) {
+                renderTemplateTree();
+                syncTemplatesToBackend();
+            }
+        }
+
+        // 編輯節點名稱
+        function editTemplateNode(type, m, med, eq, det) {
+            let oldName, newName;
+            
+            if(type === 'major') {
+                oldName = state.templateMajors[m].name;
+                newName = prompt('修改「大類」名稱：', oldName);
+                if(newName && newName.trim()) state.templateMajors[m].name = newName.trim();
+            } else if(type === 'medium') {
+                oldName = state.templateMajors[m].mediums[med].name;
+                newName = prompt('修改「中類」名稱：', oldName);
+                if(newName && newName.trim()) state.templateMajors[m].mediums[med].name = newName.trim();
+            } else if(type === 'equip') {
+                oldName = state.templateMajors[m].mediums[med].equipments[eq].name;
+                newName = prompt('修改「設備」名稱：', oldName);
+                if(newName && newName.trim()) state.templateMajors[m].mediums[med].equipments[eq].name = newName.trim();
+            } else if(type === 'detail') {
+                oldName = state.templateMajors[m].mediums[med].equipments[eq].details[det].name;
+                newName = prompt('修改「細項圖面」名稱：', oldName);
+                if(newName && newName.trim()) state.templateMajors[m].mediums[med].equipments[eq].details[det].name = newName.trim();
+            }
+            
+            if(newName && newName.trim() && newName !== oldName) {
+                renderTemplateTree();
+                syncTemplatesToBackend();
+            }
+        }
+
+        // 刪除節點
+        function deleteTemplateNode(type, m, med, eq, det) {
+            if(!confirm('確定要刪除此項目嗎？其底下所有的設定都會一併消失。')) return;
+            
+            if(type === 'major') state.templateMajors.splice(m, 1);
+            else if(type === 'medium') state.templateMajors[m].mediums.splice(med, 1);
+            else if(type === 'equip') state.templateMajors[m].mediums[med].equipments.splice(eq, 1);
+            else if(type === 'detail') state.templateMajors[m].mediums[med].equipments[eq].details.splice(det, 1);
+            
+            renderTemplateTree();
+            syncTemplatesToBackend();
+        }
+
+        // 關閉 Modal 時也同步一次，確保在 input 輸入的平行欄位有存到
+        function closeTemplateModal() {
+            document.getElementById('template-modal-content').classList.add('scale-95');
+            document.getElementById('template-modal-content').classList.remove('scale-100');
+            syncTemplatesToBackend();
+            setTimeout(() => {
+                document.getElementById('template-modal').classList.add('hidden');
+                if(state.currentTab === 'settings') renderSettings();
+            }, 200);
+        }
+
+        // --- 專案詳情頁 (Excel 表格視圖) ---
+
+        function openProjectDetail(projectId, isEditMode, sourceList) {
+            let project;
+            if(sourceList === 'active') {
+                project = state.projects.find(p => p.id === projectId);
+            } else {
+                project = state.closedProjects.find(p => p.id === projectId);
+            }
+            if(!project) return;
+            
+            state.tempEditData = JSON.parse(JSON.stringify(project));
+            state.editingProjectId = projectId;
+            state.isEditMode = isEditMode;
+            
+            document.getElementById('view-main').classList.add('hidden');
+            document.getElementById('view-project-detail').classList.remove('hidden');
+
+            document.getElementById('detail-project-id').innerText = project.id;
+            document.getElementById('detail-project-name').innerText = project.name + (sourceList === 'closed' ? ' (已歸檔)' : '');
+            
+            const saveBtn = document.getElementById('btn-save-detail');
+            const pdfBtn = document.getElementById('btn-export-pdf');
+            
+            if(!isEditMode) {
+                saveBtn.style.display = 'none';
+                pdfBtn.style.display = 'flex';
+            } else {
+                saveBtn.style.display = 'flex';
+                pdfBtn.style.display = 'none';
+            }
+
+            updateDetailProgress(); 
+            switchPhaseTab(state.activePhaseTab); 
+        }
+
+        function backToMain() {
+            state.tempEditData = null;
+            state.editingProjectId = null;
+            document.getElementById('view-project-detail').classList.add('hidden');
+            document.getElementById('view-main').classList.remove('hidden');
+            if(state.currentTab === 'dashboard') {
+                renderDashboard();
+            } else if (state.currentTab === 'closed') {
+                renderClosed(state.selectedYear);
+            }
+        }
+
+        function switchPhaseTab(phase) {
+            state.activePhaseTab = phase;
+            
+            const tabs = {
+                drawing: { el: document.getElementById('tab-drawing'), color: 'blue' },
+                production: { el: document.getElementById('tab-production'), color: 'orange' },
+                shipping: { el: document.getElementById('tab-shipping'), color: 'emerald' }
+            };
+
+            for (const [key, tab] of Object.entries(tabs)) {
+                if (key === phase) {
+                    tab.el.className = `px-6 py-2.5 font-bold text-${tab.color}-700 bg-${tab.color}-100 rounded-xl transition-all shadow-sm`;
+                } else {
+                    tab.el.className = `px-6 py-2.5 font-bold text-slate-500 hover:bg-slate-100 rounded-xl transition-all`;
+                }
+            }
+            renderPhaseTable(phase);
+        }
+
+        function getEquipRowspan(equip) {
+            return Math.max(1, equip.details.length);
+        }
+        function getMediumRowspan(medium) {
+            let count = 0;
+            if(medium.equipments.length === 0) return 1;
+            medium.equipments.forEach(eq => count += getEquipRowspan(eq));
+            return count;
+        }
+        function getMajorRowspan(major) {
+            let count = 0;
+            if(major.mediums.length === 0) return 1;
+            major.mediums.forEach(med => count += getMediumRowspan(med));
+            return count;
+        }
+
+        function renderPhaseTable(phase) {
+            const container = document.getElementById('table-container');
+            let isEdit = state.isEditMode;
+            
+            let columnsHTML = '';
+            let checklist = CHECKLIST_TEMPLATES[phase];
+            let colorClass = phase === 'drawing' ? 'blue' : (phase === 'production' ? 'orange' : 'emerald');
+
+            if (phase === 'drawing') {
+                checklist.forEach(col => columnsHTML += `<th class="border-b-2 border-slate-200 px-3 py-4 text-center text-${colorClass}-700 font-bold bg-${colorClass}-50/50 min-w-[80px]">${col}</th>`);
+            } else if (phase === 'production') {
+                checklist.forEach(col => columnsHTML += `<th class="border-b-2 border-slate-200 px-3 py-4 text-center text-${colorClass}-700 font-bold bg-${colorClass}-50/50 min-w-[80px]">${col}</th>`);
+                columnsHTML += `<th class="border-b-2 border-slate-200 px-3 py-4 text-center text-${colorClass}-700 font-bold bg-${colorClass}-50/50 min-w-[100px]">取料預估工</th>`;
+                columnsHTML += `<th class="border-b-2 border-slate-200 px-3 py-4 text-center text-${colorClass}-700 font-bold bg-${colorClass}-50/50 min-w-[100px]">製作預估工</th>`;
+            } else if (phase === 'shipping') {
+                checklist.forEach(col => columnsHTML += `<th class="border-b-2 border-slate-200 px-3 py-4 text-center text-${colorClass}-700 font-bold bg-${colorClass}-50/50 min-w-[100px]">${col}</th>`);
+            }
+
+            let html = `
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden w-max min-w-full">
+            <table class="w-full text-sm border-collapse" id="data-table">
+                <thead class="sticky-header">
+                    <tr>
+                        <th class="border-b-2 border-slate-200 px-4 py-4 text-left w-32 bg-slate-50 font-bold text-slate-600">大類</th>
+                        <th class="border-b-2 border-slate-200 px-4 py-4 text-left w-40 bg-slate-50 font-bold text-slate-600">中類 (權重%)</th>
+                        <th class="border-b-2 border-slate-200 px-4 py-4 text-left w-40 bg-slate-50 font-bold text-slate-600">設備</th>
+                        
+                        <th class="border-b-2 border-slate-200 px-3 py-4 text-left w-24 bg-slate-50 font-bold text-slate-600 text-xs">組裝編號</th>
+                        <th class="border-b-2 border-slate-200 px-3 py-4 text-left w-24 bg-slate-50 font-bold text-slate-600 text-xs">本體編號</th>
+                        <th class="border-b-2 border-slate-200 px-3 py-4 text-center w-20 bg-slate-50 font-bold text-slate-600 text-xs">版本</th>
+                        
+                        <th class="border-b-2 border-slate-200 px-4 py-4 text-left w-56 bg-slate-50 font-bold text-slate-600">細項圖面</th>
+                        <th class="border-b-2 border-slate-200 px-3 py-4 text-center w-16 bg-slate-50 font-bold text-slate-600 text-xs">數量</th>
+                        
+                        ${columnsHTML}
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+            `;
+
+            state.tempEditData.majors.forEach((major, majIdx) => {
+                let majRs = getMajorRowspan(major);
+                let firstMaj = true;
+
+                major.mediums.forEach((medium, medIdx) => {
+                    let medRs = getMediumRowspan(medium);
+                    let firstMed = true;
+
+                    medium.equipments.forEach((equip, eqIdx) => {
+                        let eqRs = getEquipRowspan(equip);
+                        let firstEq = true;
+
+                        if (equip.details.length === 0) {
+                            html += renderTableRow(firstMaj, majRs, major.name, firstMed, medRs, medium.name, medium.weight, majIdx, medIdx, firstEq, eqRs, equip.name, null, null, phase, isEdit);
+                            firstMaj = false; firstMed = false; firstEq = false;
+                        } else {
+                            equip.details.forEach((det, detIdx) => {
+                                const pId = `${majIdx}-${medIdx}-${eqIdx}-${detIdx}`;
+                                html += renderTableRow(firstMaj, majRs, major.name, firstMed, medRs, medium.name, medium.weight, majIdx, medIdx, firstEq, eqRs, equip.name, det, pId, phase, isEdit);
+                                firstMaj = false; firstMed = false; firstEq = false;
+                            });
+                        }
+                    });
+                });
+            });
+
+            html += `</tbody></table></div>`;
+            container.innerHTML = html;
+        }
+
+        function renderTableRow(firstMaj, majRs, majName, firstMed, medRs, medName, medWeight, majIdx, medIdx, firstEq, eqRs, eqName, det, pId, phase, isEdit) {
+            let rowHtml = `<tr class="hover:bg-slate-50/80 transition-colors">`;
+            
+            if (firstMaj) rowHtml += `<td rowspan="${majRs}" class="border-r border-slate-100 px-4 py-3 font-black text-slate-700 align-top bg-white/50">${majName}</td>`;
+            if (firstMed) {
+                rowHtml += `<td rowspan="${medRs}" class="border-r border-slate-100 px-4 py-3 bg-white align-top">
+                                <div class="font-bold text-slate-700 mb-2">${medName}</div>
+                                <div class="flex items-center gap-1 bg-slate-50 rounded-lg px-2 py-1 w-max border border-slate-100">
+                                    <span class="text-[10px] text-slate-400 font-bold uppercase">Weight</span>
+                                    <input type="number" min="0" max="100" value="${medWeight}" 
+                                           oninput="updateWeight(${majIdx}, ${medIdx}, this.value)" 
+                                           ${!isEdit ? 'disabled' : ''}
+                                           class="w-10 text-center text-sm font-black text-indigo-600 bg-transparent focus:outline-none focus:bg-white rounded">
+                                    <span class="text-xs text-slate-400">%</span>
+                                </div>
+                            </td>`;
+            }
+            if (firstEq) rowHtml += `<td rowspan="${eqRs}" class="border-r border-slate-100 px-4 py-3 bg-white align-top text-slate-600 font-bold">${eqName}</td>`;
+            
+            if (!det) {
+                rowHtml += `<td colspan="5" class="px-4 py-3 text-slate-300 italic text-center">空空如也，沒有細項</td>`;
+                let colCount = (phase==='drawing') ? 6 : (phase==='production' ? 6 : 3);
+                for(let i=0; i<colCount; i++) rowHtml += `<td class="bg-slate-50/30 border-l border-slate-50"></td>`;
+            } else {
+                let aId = det.assemblyId || '';
+                let bId = det.bodyId || '';
+                let ver = det.version || '';
+                let qty = det.qty || 1; 
+
+                rowHtml += `
+                    <td class="border-r border-slate-100 px-3 py-3 text-xs text-slate-500 font-mono">
+                        <input type="text" value="${aId}" ${!isEdit ? 'disabled' : ''} onchange="updateDetailField('${pId}', 'assemblyId', this.value)" class="w-full bg-transparent border-b border-transparent focus:border-indigo-300 focus:outline-none placeholder:text-slate-200" placeholder="-">
+                    </td>
+                    <td class="border-r border-slate-100 px-3 py-3 text-xs text-slate-500 font-mono">
+                        <input type="text" value="${bId}" ${!isEdit ? 'disabled' : ''} onchange="updateDetailField('${pId}', 'bodyId', this.value)" class="w-full bg-transparent border-b border-transparent focus:border-indigo-300 focus:outline-none placeholder:text-slate-200" placeholder="-">
+                    </td>
+                    <td class="border-r border-slate-100 px-3 py-3 text-xs text-slate-500 font-mono text-center">
+                        <input type="text" value="${ver}" ${!isEdit ? 'disabled' : ''} onchange="updateDetailField('${pId}', 'version', this.value)" class="w-full text-center bg-transparent border-b border-transparent focus:border-indigo-300 focus:outline-none placeholder:text-slate-200" placeholder="-">
+                    </td>
+                `;
+
+                rowHtml += `<td class="border-r border-slate-100 px-4 py-3 text-slate-700 font-bold">
+                                <input type="text" value="${det.name}" ${!isEdit ? 'disabled' : ''} onchange="updateDetailField('${pId}', 'name', this.value)" class="w-full bg-transparent border-b border-transparent focus:border-indigo-300 focus:outline-none">
+                            </td>`;
+
+                rowHtml += `
+                    <td class="border-r border-slate-100 px-3 py-3 text-center">
+                        <input type="number" min="0" value="${qty}" ${!isEdit ? 'disabled' : ''} onchange="updateDetailField('${pId}', 'qty', parseInt(this.value)||0)" class="w-12 text-center bg-slate-50 border border-slate-200 rounded px-1 py-0.5 text-sm font-bold text-slate-600 focus:outline-none focus:border-indigo-400">
+                    </td>
+                `;
+                
+                let colorBase = phase === 'drawing' ? 'blue' : (phase === 'production' ? 'orange' : 'emerald');
+
+                if (phase === 'drawing') {
+                    for(let i=0; i<6; i++) {
+                        let checked = det.drawing[i] ? 'checked' : '';
+                        rowHtml += `<td class="border-l border-slate-50 p-2 text-center align-middle bg-${colorBase}-50/10 hover:bg-${colorBase}-50/40 transition-colors">
+                                        <div class="flex justify-center">
+                                            <input type="checkbox" ${checked} ${!isEdit ? 'disabled' : ''} onchange="toggleCheck('${pId}', 'draw', ${i}, this.checked)" class="w-5 h-5 text-${colorBase}-500 rounded border-slate-300 focus:ring-${colorBase}-500 cursor-pointer shadow-sm">
+                                        </div>
+                                    </td>`;
+                    }
+                } else if (phase === 'production') {
+                    for(let i=0; i<4; i++) {
+                        let checked = det.production.checks[i] ? 'checked' : '';
+                        rowHtml += `<td class="border-l border-slate-50 p-2 text-center align-middle bg-${colorBase}-50/10 hover:bg-${colorBase}-50/40 transition-colors">
+                                        <div class="flex justify-center">
+                                            <input type="checkbox" ${checked} ${!isEdit ? 'disabled' : ''} onchange="toggleCheck('${pId}', 'prod', ${i}, this.checked)" class="w-5 h-5 text-${colorBase}-500 rounded border-slate-300 focus:ring-${colorBase}-500 cursor-pointer shadow-sm">
+                                        </div>
+                                    </td>`;
+                    }
+                    rowHtml += `<td class="border-l border-slate-50 p-2 text-center bg-${colorBase}-50/10">
+                                    <input type="text" value="${det.production.inputs.material}" ${!isEdit ? 'disabled' : ''} onchange="updateInput('${pId}', 'material', this.value)" class="w-16 text-center border border-slate-200 rounded-lg px-2 py-1 text-sm bg-white focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400 shadow-sm placeholder:text-slate-200" placeholder="-">
+                                </td>`;
+                    rowHtml += `<td class="border-l border-slate-50 p-2 text-center bg-${colorBase}-50/10">
+                                    <input type="text" value="${det.production.inputs.work}" ${!isEdit ? 'disabled' : ''} onchange="updateInput('${pId}', 'work', this.value)" class="w-16 text-center border border-slate-200 rounded-lg px-2 py-1 text-sm bg-white focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400 shadow-sm placeholder:text-slate-200" placeholder="-">
+                                </td>`;
+                } else if (phase === 'shipping') {
+                    for(let i=0; i<3; i++) {
+                        let checked = det.shipping[i] ? 'checked' : '';
+                        rowHtml += `<td class="border-l border-slate-50 p-2 text-center align-middle bg-${colorBase}-50/10 hover:bg-${colorBase}-50/40 transition-colors">
+                                        <div class="flex justify-center">
+                                            <input type="checkbox" ${checked} ${!isEdit ? 'disabled' : ''} onchange="toggleCheck('${pId}', 'ship', ${i}, this.checked)" class="w-5 h-5 text-${colorBase}-500 rounded border-slate-300 focus:ring-${colorBase}-500 cursor-pointer shadow-sm">
+                                        </div>
+                                    </td>`;
+                    }
+                }
+            }
+            rowHtml += `</tr>`;
+            return rowHtml;
+        }
+
+        function getDetailObj(pIdStr) {
+            const [maj, med, eq, det] = pIdStr.split('-').map(Number);
+            return state.tempEditData.majors[maj].mediums[med].equipments[eq].details[det];
+        }
+
+        function updateDetailField(pId, field, val) {
+            const detail = getDetailObj(pIdStr); // Wait, small fix on param name internally handled below
+        }
+        
+        // Correctly named function replacing the empty one above
+        function updateDetailField(pId, field, val) {
+            const detail = getDetailObj(pId);
+            detail[field] = val;
+        }
+
+        function toggleCheck(pId, phase, idx, isChecked) {
+            const detail = getDetailObj(pId);
+            if (phase === 'draw') detail.drawing[idx] = isChecked;
+            if (phase === 'prod') detail.production.checks[idx] = isChecked;
+            if (phase === 'ship') detail.shipping[idx] = isChecked;
+            updateDetailProgress();
+        }
+
+        function updateInput(pId, type, val) {
+            const detail = getDetailObj(pId);
+            detail.production.inputs[type] = val;
+        }
+
+        function updateWeight(majIdx, medIdx, val) {
+            state.tempEditData.majors[majIdx].mediums[medIdx].weight = parseFloat(val) || 0;
+            updateDetailProgress();
+        }
+
+        function updateDetailProgress() {
+            const prog = calculateProgress(state.tempEditData);
+            
+            document.getElementById('detail-prog-draw').innerText = prog.draw + '%';
+            document.getElementById('detail-prog-prod').innerText = prog.prod + '%';
+            document.getElementById('detail-prog-ship').innerText = prog.ship + '%';
+            document.getElementById('detail-prog-total').innerText = prog.total + '%';
+
+            const weightBox = document.getElementById('detail-weight-box');
+            const weightText = document.getElementById('detail-weight-text');
+            const warning = document.getElementById('detail-weight-warning');
+            const saveBtn = document.getElementById('btn-save-detail');
+
+            weightText.innerText = prog.weightSum + '%';
+
+            if (prog.weightSum !== 100) {
+                weightBox.classList.replace('bg-emerald-50', 'bg-rose-50');
+                weightBox.classList.replace('border-emerald-200', 'border-rose-200');
+                weightText.classList.replace('text-emerald-600', 'text-rose-600');
+                weightBox.querySelector('.w-10').classList.replace('bg-emerald-100', 'bg-rose-100');
+                weightBox.querySelector('.w-10').classList.replace('text-emerald-600', 'text-rose-600');
+                warning.classList.remove('hidden');
+                
+                if(state.isEditMode) {
+                    saveBtn.disabled = true;
+                    saveBtn.classList.replace('bg-indigo-600', 'bg-slate-300');
+                    saveBtn.classList.replace('hover:bg-indigo-700', 'hover:bg-slate-300');
+                    saveBtn.classList.remove('shadow-md', 'shadow-indigo-200', 'hover:-translate-y-0.5');
+                    saveBtn.classList.add('cursor-not-allowed');
+                    saveBtn.innerHTML = '<i class="fa-solid fa-lock"></i> 權重錯誤';
+                }
+            } else {
+                weightBox.classList.replace('bg-rose-50', 'bg-emerald-50');
+                weightBox.classList.replace('border-rose-200', 'border-emerald-200');
+                weightText.classList.replace('text-rose-600', 'text-emerald-600');
+                weightBox.querySelector('.w-10').classList.replace('bg-rose-100', 'bg-emerald-100');
+                weightBox.querySelector('.w-10').classList.replace('text-rose-600', 'text-emerald-600');
+                warning.classList.add('hidden');
+
+                if(state.isEditMode) {
+                    saveBtn.disabled = false;
+                    saveBtn.classList.replace('bg-slate-300', 'bg-indigo-600');
+                    saveBtn.classList.replace('hover:bg-slate-300', 'hover:bg-indigo-700');
+                    saveBtn.classList.add('shadow-md', 'shadow-indigo-200', 'hover:-translate-y-0.5');
+                    saveBtn.classList.remove('cursor-not-allowed');
+                    saveBtn.innerHTML = '<i class="fa-solid fa-check"></i> 儲存變更';
+                }
+            }
+        }
+
+        async function saveProjectData() {
+            const index = state.projects.findIndex(p => p.id === state.editingProjectId);
+            if(index !== -1) {
+                state.projects[index] = JSON.parse(JSON.stringify(state.tempEditData));
+                const projectObj = state.projects[index];
+                
+                const saveBtn = document.getElementById('btn-save-detail');
+                const origHtml = saveBtn.innerHTML;
+                saveBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 儲存至雲端...';
+                saveBtn.disabled = true;
+
+                try {
+                    const response = await fetch(`${API_URL}?action=saveProject`, {
+                        method: 'POST',
+                        body: JSON.stringify(projectObj)
+                    });
+                    const res = await response.json();
+                    
+                    if(res.status === 'success') {
+                        alert('專案進度已成功同步至 Google Sheets！');
+                        backToMain();
+                    } else {
+                        alert('儲存失敗：' + res.message);
+                    }
+                } catch (error) {
+                    alert('網路連線異常，請稍後再試。');
+                } finally {
+                    saveBtn.innerHTML = origHtml;
+                    saveBtn.disabled = false;
+                }
+            }
+        }
+
+        async function closeProject(id) {
+            if(confirm(`確定要把專案 [${id}] 結案並封存至歷史典藏館嗎？`)) {
+                const index = state.projects.findIndex(p => p.id === id);
+                if(index > -1) {
+                    let proj = state.projects[index];
+                    // 先暫存原始狀態，若雲端寫入失敗可復原
+                    const origStatus = proj.status;
+                    
+                    proj.status = 'closed';
+                    proj.closeDate = new Date().toISOString().split('T')[0];
+                    proj.progress = calculateProgress(proj);
+                    
+                    try {
+                        const response = await fetch(`${API_URL}?action=saveProject`, {
+                            method: 'POST',
+                            body: JSON.stringify(proj)
+                        });
+                        const res = await response.json();
+                        
+                        if(res.status === 'success') {
+                            state.closedProjects.push(proj);
+                            state.projects.splice(index, 1);
+                            renderDashboard();
+                            alert('專案已順利結案並封存。');
+                        } else {
+                            proj.status = origStatus; // 還原
+                            alert('結案失敗：' + res.message);
+                        }
+                    } catch (error) {
+                        proj.status = origStatus; // 還原
+                        alert('網路連線異常，請稍後再試。');
+                    }
+                }
+            }
+        }
+
+        async function deleteProject(id) {
+            const pwd = prompt(`警告：您即將永久刪除專案 [${id}]。\n請輸入管理員密碼 (將核對 Google Sheets 設定) 以確認刪除：`);
+            if (pwd === null) return;
+
+            try {
+                const isValid = await verifyPasswordFromBackend(pwd);
+                if (isValid) {
+                    const response = await fetch(`${API_URL}?action=deleteProject&id=${encodeURIComponent(id)}`);
+                    const res = await response.json();
+                    
+                    if(res.status === 'success') {
+                        const index = state.projects.findIndex(p => p.id === id);
+                        if(index > -1) {
+                            state.projects.splice(index, 1);
+                            renderDashboard();
+                            alert(`專案 [${id}] 已成功從資料庫中永久刪除。`);
+                        }
+                    } else {
+                        alert('刪除失敗：' + res.message);
+                    }
+                } else {
+                    alert('密碼錯誤，刪除失敗！');
+                }
+            } catch(e) {
+                alert('網路連線異常，請檢查。');
+            }
+        }
+
+        async function verifyPasswordFromBackend(password) {
+            if (!password || password.trim() === "") return false;
+            try {
+                const response = await fetch(`${API_URL}?action=verifyPassword&password=${encodeURIComponent(password)}`);
+                const res = await response.json();
+                return res.status === 'success' && res.data.isValid === true;
+            } catch(e) {
+                console.error("Password verification error:", e);
+                return false;
+            }
+        }
+
+        function exportToPDF() {
+            const btn = document.getElementById('btn-export-pdf');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 報表產生中...';
+            
+            const detailView = document.getElementById('view-project-detail');
+            detailView.classList.add('exporting-pdf');
+            
+            setTimeout(() => {
+                const opt = {
+                    margin:       0.3,
+                    filename:     `專案報表_${state.editingProjectId}.pdf`,
+                    image:        { type: 'jpeg', quality: 0.98 },
+                    jsPDF:        { unit: 'in', format: 'a3', orientation: 'landscape' },
+                    html2canvas:  { 
+                        scale: 1.5, 
+                        useCORS: true,
+                        windowWidth: detailView.scrollWidth,
+                        windowHeight: detailView.scrollHeight
+                    }
+                };
+
+                html2pdf().set(opt).from(detailView).save().then(() => {
+                    btn.innerHTML = originalText;
+                    detailView.classList.remove('exporting-pdf');
+                });
+            }, 300);
+        }
+
+        // --- 系統初始化載入 ---
+        async function fetchInitialData() {
+            try {
+                const response = await fetch(`${API_URL}?action=getInitialData`);
+                const result = await response.json();
+                
+                if(result.status === 'success') {
+                    state.projects = result.data.projects || [];
+                    state.closedProjects = result.data.closedProjects || [];
+                    state.templateMajors = result.data.templateMajors || [];
+                    
+                    // 載入完成，隱藏全域 Loading
+                    const loader = document.getElementById('global-loader');
+                    loader.classList.add('opacity-0');
+                    setTimeout(() => loader.classList.add('hidden'), 500);
+
+                    switchTab('dashboard'); 
+                } else {
+                    alert("載入資料庫失敗，請確認 API 網址是否正確。錯誤：" + result.message);
+                }
+            } catch(e) {
+                alert("網路錯誤，無法連線至 Google Sheets：" + e.message);
+            }
+        }
+
+        window.onload = () => {
+            // 取代原本直接呼叫 switchTab，改為先向 Google Sheets 要資料
+            fetchInitialData();
+        };
+
     </script>
 </body>
 </html>

@@ -128,7 +128,7 @@
                         <i class="fa-solid fa-arrow-left"></i>
                     </button>
                     <div>
-                        <span id="detail-project-id" class="text-xs font-bold text-indigo-500 bg-indigo-50 px-2 py-1 rounded-lg mr-2"></span>
+                        <span id="detail-project-id" class="text-sm font-bold text-indigo-500 bg-indigo-50 px-2 py-1 rounded-lg mr-2"></span>
                         <h3 id="detail-project-name" class="text-2xl font-black inline-block tracking-tight">專案編輯</h3>
                     </div>
                 </div>
@@ -148,15 +148,15 @@
                     <div class="flex gap-8 items-center justify-between">
                         <div class="flex gap-4">
                             <div class="bg-blue-50/50 border border-blue-100 rounded-2xl p-4 min-w-[120px] text-center">
-                                <div class="text-xs text-blue-500 font-bold mb-1">繪圖</div>
+                                <div class="text-xs text-blue-500 font-bold mb-1">繪圖進度</div>
                                 <div id="detail-prog-draw" class="text-2xl font-black text-blue-600">0%</div>
                             </div>
                             <div class="bg-orange-50/50 border border-orange-100 rounded-2xl p-4 min-w-[120px] text-center">
-                                <div class="text-xs text-orange-500 font-bold mb-1">生產</div>
+                                <div class="text-xs text-orange-500 font-bold mb-1">生產製造</div>
                                 <div id="detail-prog-prod" class="text-2xl font-black text-orange-600">0%</div>
                             </div>
                             <div class="bg-emerald-50/50 border border-emerald-100 rounded-2xl p-4 min-w-[120px] text-center">
-                                <div class="text-xs text-emerald-500 font-bold mb-1">出貨</div>
+                                <div class="text-xs text-emerald-500 font-bold mb-1">出貨現場</div>
                                 <div id="detail-prog-ship" class="text-2xl font-black text-emerald-600">0%</div>
                             </div>
                             <div class="flex items-center mx-2 text-slate-300"><i class="fa-solid fa-chevron-right"></i></div>
@@ -182,13 +182,13 @@
 
                     <div class="flex gap-3 mt-8">
                         <button onclick="switchPhaseTab('drawing')" id="tab-drawing" class="px-6 py-2.5 font-bold text-blue-700 bg-blue-100 rounded-xl transition-all shadow-sm">
-                            <i class="fa-solid fa-pen-nib mr-2"></i>繪圖藍圖
+                            <i class="fa-solid fa-pen-nib mr-2"></i>繪圖進度
                         </button>
                         <button onclick="switchPhaseTab('production')" id="tab-production" class="px-6 py-2.5 font-bold text-slate-500 hover:bg-slate-100 rounded-xl transition-all">
-                            <i class="fa-solid fa-hammer mr-2"></i>生產打造
+                            <i class="fa-solid fa-hammer mr-2"></i>生產製造
                         </button>
                         <button onclick="switchPhaseTab('shipping')" id="tab-shipping" class="px-6 py-2.5 font-bold text-slate-500 hover:bg-slate-100 rounded-xl transition-all">
-                            <i class="fa-solid fa-paper-plane mr-2"></i>出貨啟航
+                            <i class="fa-solid fa-paper-plane mr-2"></i>出貨現場
                         </button>
                     </div>
                 </div>
@@ -204,7 +204,7 @@
             <header class="bg-gradient-to-r from-indigo-500 to-purple-600 p-6 flex justify-between items-center text-white shrink-0">
                 <div>
                     <h3 class="text-2xl font-black tracking-tight"><i class="fa-solid fa-cube mr-2"></i>標準模板庫管理</h3>
-                    <p class="text-indigo-100 text-sm mt-1">在這裡定義設備的層級架構，新增專案時即可一鍵帶入。</p>
+                    <p class="text-indigo-100 text-sm mt-1">在這裡定義設備的層級架構與平行資訊，新增專案時即可一鍵帶入。</p>
                 </div>
                 <button onclick="closeTemplateModal()" class="w-10 h-10 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center transition-colors">
                     <i class="fa-solid fa-xmark text-xl"></i>
@@ -233,15 +233,15 @@
 
         const AREAS = ['A案', 'B案', 'C案', 'D案'];
 
-        // 將剛才部署的 Google Apps Script API 網址放在這裡
+        // Google Apps Script API 網址
         const API_URL = "https://script.google.com/macros/s/AKfycbyksZrGnmM62ilv7lOAho8UtHlG__Ggkzqf06p7rZ67NvyYlFu-mpmCbs8_GNJuMht22A/exec";
 
-        // 系統資料 (初始為空，將從後端抓取)
+        // 系統資料
         let state = {
             currentTab: 'dashboard',
             editingProjectId: null,
             isEditMode: false,
-            hasUnsavedChanges: false, // 新增：追蹤是否有未儲存的變更
+            hasUnsavedChanges: false, 
             activePhaseTab: 'drawing', 
             tempEditData: null,
             selectedYear: null,
@@ -250,15 +250,19 @@
             closedProjects: []
         };
 
-        // --- 核心運算邏輯 ---
+        // --- 核心運算邏輯 (依照最新規則修改) ---
         function calculateProgress(projectData) {
-            let drawTotal = 0, prodTotal = 0, shipTotal = 0;
+            let drawWeighted = 0, prodWeighted = 0, shipWeighted = 0;
+            let drawW = 0, prodW = 0, shipW = 0;
             let weightSum = 0;
 
             projectData.majors.forEach(major => {
                 major.mediums.forEach(medium => {
                     let weight = parseFloat(medium.weight) || 0;
                     weightSum += weight;
+
+                    let hasProd = medium.hasProduction !== false;
+                    let hasShip = medium.hasShipping !== false;
 
                     let equipDraw = 0, equipProd = 0, equipShip = 0;
                     let equipCount = medium.equipments.length;
@@ -270,8 +274,15 @@
 
                             if (detCount > 0) {
                                 eq.details.forEach(det => {
-                                    detDraw += (det.drawing.filter(Boolean).length / 6) * 100;
-                                    detProd += (det.production.checks.filter(Boolean).length / 4) * 100;
+                                    // 繪圖進度：僅看 [0] 製作圖進度
+                                    detDraw += det.drawing[0] ? 100 : 0;
+                                    
+                                    // 生產製造：僅看 [1]製作完成, [2]組裝完成, [3]噴漆完成
+                                    let pChecks = det.production.checks;
+                                    let prodCheckedCount = (pChecks[1]?1:0) + (pChecks[2]?1:0) + (pChecks[3]?1:0);
+                                    detProd += (prodCheckedCount / 3) * 100;
+                                    
+                                    // 出貨現場：主體, 周邊, 市購品 三者皆算
                                     detShip += (det.shipping.filter(Boolean).length / 3) * 100;
                                 });
                                 equipDraw += (detDraw / detCount);
@@ -279,15 +290,41 @@
                                 equipShip += (detShip / detCount);
                             }
                         });
-                        drawTotal += (equipDraw / equipCount) * (weight / 100);
-                        prodTotal += (equipProd / equipCount) * (weight / 100);
-                        shipTotal += (equipShip / equipCount) * (weight / 100);
+                        
+                        drawWeighted += (equipDraw / equipCount) * weight;
+                        drawW += weight;
+                        
+                        if (hasProd) {
+                            prodWeighted += (equipProd / equipCount) * weight;
+                            prodW += weight;
+                        }
+                        if (hasShip) {
+                            shipWeighted += (equipShip / equipCount) * weight;
+                            shipW += weight;
+                        }
                     }
                 });
             });
 
-            let total = (drawTotal + prodTotal + shipTotal) / 3;
-            return { draw: Math.round(drawTotal), prod: Math.round(prodTotal), ship: Math.round(shipTotal), total: Math.round(total), weightSum: weightSum };
+            // 計算各大階段進度 (若該階段完全沒有被啟用，則為 0)
+            let drawTotal = drawW > 0 ? (drawWeighted / drawW) : 0;
+            let prodTotal = prodW > 0 ? (prodWeighted / prodW) : 0;
+            let shipTotal = shipW > 0 ? (shipWeighted / shipW) : 0;
+
+            // 計算總體達成率 (動態排除未啟用的階段)
+            let activePhases = 1; // 繪圖永遠必備
+            let totalSum = drawTotal;
+            if (prodW > 0) { activePhases++; totalSum += prodTotal; }
+            if (shipW > 0) { activePhases++; totalSum += shipTotal; }
+            let total = totalSum / activePhases;
+            
+            return { 
+                draw: Math.round(drawTotal), 
+                prod: Math.round(prodTotal), 
+                ship: Math.round(shipTotal), 
+                total: Math.round(total), 
+                weightSum: weightSum 
+            };
         }
 
         // --- 主畫面導覽邏輯 ---
@@ -321,7 +358,7 @@
             }
         }
 
-        // --- 戰情室 (垂直排列 A,B,C,D，內部卡片水平排列至多4個) ---
+        // --- 戰情室 ---
         function renderDashboard() {
             let html = '<div class="flex flex-col gap-8">';
             AREAS.forEach(area => {
@@ -358,21 +395,21 @@
 
                             <div class="space-y-3 mb-5 flex-1">
                                 <div class="flex items-center gap-2">
-                                    <span class="w-14 shrink-0 whitespace-nowrap text-sm text-slate-400 font-bold"><i class="fa-solid fa-pen-nib text-blue-400"></i> 繪圖</span>
+                                    <span class="w-20 shrink-0 whitespace-nowrap text-sm text-slate-400 font-bold"><i class="fa-solid fa-pen-nib text-blue-400"></i> 繪圖進度</span>
                                     <div class="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
                                         <div class="h-full bg-gradient-to-r from-blue-400 to-blue-500 rounded-full" style="width: ${prog.draw}%"></div>
                                     </div>
                                     <span class="w-10 text-right text-sm font-bold text-slate-600">${prog.draw}%</span>
                                 </div>
                                 <div class="flex items-center gap-2">
-                                    <span class="w-14 shrink-0 whitespace-nowrap text-sm text-slate-400 font-bold"><i class="fa-solid fa-hammer text-orange-400"></i> 生產</span>
+                                    <span class="w-20 shrink-0 whitespace-nowrap text-sm text-slate-400 font-bold"><i class="fa-solid fa-hammer text-orange-400"></i> 生產製造</span>
                                     <div class="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
                                         <div class="h-full bg-gradient-to-r from-orange-400 to-orange-500 rounded-full" style="width: ${prog.prod}%"></div>
                                     </div>
                                     <span class="w-10 text-right text-sm font-bold text-slate-600">${prog.prod}%</span>
                                 </div>
                                 <div class="flex items-center gap-2">
-                                    <span class="w-14 shrink-0 whitespace-nowrap text-sm text-slate-400 font-bold"><i class="fa-solid fa-paper-plane text-emerald-400"></i> 出貨</span>
+                                    <span class="w-20 shrink-0 whitespace-nowrap text-sm text-slate-400 font-bold"><i class="fa-solid fa-paper-plane text-emerald-400"></i> 出貨現場</span>
                                     <div class="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
                                         <div class="h-full bg-gradient-to-r from-emerald-400 to-emerald-500 rounded-full" style="width: ${prog.ship}%"></div>
                                     </div>
@@ -435,8 +472,8 @@
                         <div class="bg-slate-50 border border-slate-100 p-5 rounded-2xl hover-lift relative group transition-all hover:bg-white hover:border-slate-200 flex flex-col h-full">
                             <span class="text-sm bg-white text-slate-500 px-2 py-1 rounded border border-slate-200 font-bold w-max">${p.id}</span>
                             <h4 class="font-black text-xl text-slate-600 mt-2 mb-3 tracking-tight truncate" title="${p.name}">${p.name}</h4>
-                            <div class="text-base text-slate-400 mb-4 font-medium"><i class="fa-regular fa-calendar-check mr-1"></i> 結案時間: ${p.closeDate}</div>
-                            <button onclick="openProjectDetail('${p.id}', false, 'closed')" class="w-full py-2.5 text-base bg-slate-700 hover:bg-slate-800 text-white rounded-xl font-bold transition-all shadow-sm mt-auto">
+                            <div class="text-sm text-slate-400 mb-4 font-medium"><i class="fa-regular fa-calendar-check mr-1"></i> 結案時間: ${p.closeDate}</div>
+                            <button onclick="openProjectDetail('${p.id}', false, 'closed')" class="w-full py-2.5 text-sm bg-slate-700 hover:bg-slate-800 text-white rounded-xl font-bold transition-all shadow-sm mt-auto">
                                 <i class="fa-solid fa-book-open mr-1"></i> 翻閱報表 (可匯出)
                             </button>
                         </div>`;
@@ -448,8 +485,7 @@
             document.getElementById('main-content').innerHTML = html;
         }
 
-
-        // --- 模板與設定 (新增工案 & 呼叫模板工廠) ---
+        // --- 模板與設定 ---
         function renderSettings() {
             let checklistHtml = '';
             if(state.templateMajors.length === 0) {
@@ -458,7 +494,13 @@
                 state.templateMajors.forEach((maj, mIdx) => {
                     checklistHtml += `<div class="font-bold text-indigo-700 text-sm mb-2 mt-4 first:mt-0 px-1 border-b border-indigo-100 pb-1"><i class="fa-solid fa-folder-open mr-1"></i> ${maj.name}</div>`;
                     maj.mediums.forEach((med, medIdx) => {
-                        checklistHtml += `<div class="font-bold text-slate-600 text-xs ml-4 mb-2 mt-2 px-1 border-l-2 border-slate-200 pl-2">${med.name} <span class="text-xs text-slate-400 font-normal ml-2">權重設定: ${med.weight||0}%</span></div>`;
+                        checklistHtml += `
+                            <div class="font-bold text-slate-600 text-xs ml-4 mb-2 mt-2 px-1 border-l-2 border-slate-200 pl-2">
+                                ${med.name} 
+                                <span class="text-xs text-slate-400 font-normal ml-2">權重設定: ${med.weight||0}%</span>
+                                ${med.hasProduction === false ? '<span class="ml-2 text-xs text-orange-400 bg-orange-50 px-1 rounded">不生產</span>' : ''}
+                                ${med.hasShipping === false ? '<span class="ml-2 text-xs text-emerald-400 bg-emerald-50 px-1 rounded">不出貨</span>' : ''}
+                            </div>`;
                         if(med.equipments.length === 0) {
                             checklistHtml += `<div class="text-slate-300 text-xs ml-8 italic mb-2">無設備</div>`;
                         }
@@ -478,7 +520,6 @@
 
             const html = `
             <div class="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-6xl">
-                <!-- 建立新專案 -->
                 <div class="bg-white rounded-3xl shadow-sm border border-slate-100 p-8 flex flex-col h-full">
                     <div class="w-12 h-12 bg-indigo-100 text-indigo-500 rounded-2xl flex items-center justify-center text-2xl mb-6 shrink-0">
                         <i class="fa-solid fa-plus"></i>
@@ -514,7 +555,6 @@
                     </button>
                 </div>
 
-                <!-- 管理標準模板 -->
                 <div class="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-3xl shadow-lg border border-indigo-400 p-8 text-white relative overflow-hidden flex flex-col h-full hover-lift">
                     <div class="absolute -right-10 -top-10 text-white/10 text-9xl pointer-events-none">
                         <i class="fa-solid fa-cube"></i>
@@ -559,7 +599,7 @@
             }
         }
 
-        // --- 核心：動態產生新專案邏輯 ---
+        // --- 動態產生新專案邏輯 ---
         async function createNewProject() {
             const idVal = document.getElementById('new-proj-id').value.trim().toUpperCase();
             const nameVal = document.getElementById('new-proj-name').value.trim();
@@ -597,7 +637,13 @@
                 Object.keys(treeStruct[m]).forEach(medStr => {
                     let med = parseInt(medStr);
                     let templateMed = templateMaj.mediums[med];
-                    let newMed = { name: templateMed.name, weight: templateMed.weight || 0, equipments: [] };
+                    let newMed = { 
+                        name: templateMed.name, 
+                        weight: templateMed.weight || 0, 
+                        hasProduction: templateMed.hasProduction !== false,
+                        hasShipping: templateMed.hasShipping !== false,
+                        equipments: [] 
+                    };
 
                     treeStruct[m][med].forEach(eqIdx => {
                         let templateEq = templateMed.equipments[eqIdx];
@@ -656,7 +702,6 @@
             }
         }
 
-        // --- 同步模板資料至後端 ---
         async function syncTemplatesToBackend() {
             try {
                 await fetch(`${API_URL}?action=saveTemplates`, {
@@ -667,7 +712,6 @@
                 console.error("模板自動同步失敗", error);
             }
         }
-
 
         // --- 模板工廠 Modal 管理邏輯 ---
         function openTemplateModal() {
@@ -690,7 +734,11 @@
 
         function updateTemplateField(type, m, med, eq, det, field, value) {
             if (type === 'medium') {
-                state.templateMajors[m].mediums[med][field] = parseFloat(value) || 0;
+                if (field === 'hasProduction' || field === 'hasShipping') {
+                    state.templateMajors[m].mediums[med][field] = value;
+                } else {
+                    state.templateMajors[m].mediums[med][field] = parseFloat(value) || 0;
+                }
             } else if (type === 'detail') {
                 if (field === 'qty') {
                     state.templateMajors[m].mediums[med].equipments[eq].details[det][field] = parseInt(value) || 0;
@@ -728,22 +776,36 @@
                 if(maj.mediums.length === 0) html += `<div class="text-slate-400 text-sm italic py-2">無中類資料</div>`;
 
                 maj.mediums.forEach((med, medIdx) => {
+                    let hasProd = med.hasProduction !== false;
+                    let hasShip = med.hasShipping !== false;
+
                     html += `
                     <div class="relative bg-slate-50 border border-slate-200 rounded-lg p-4 ml-6">
                         <div class="absolute -left-6 top-6 w-6 h-0.5 bg-slate-200"></div>
                         
-                        <div class="flex items-center justify-between mb-3 border-b border-slate-100 pb-2">
+                        <div class="flex flex-wrap items-center justify-between mb-3 border-b border-slate-100 pb-2 gap-y-2">
                             <div class="font-bold text-slate-700 text-sm flex items-center gap-2">
                                 <span><i class="fa-solid fa-layer-group text-slate-400 mr-1"></i> ${med.name}</span>
                                 <button onclick="editTemplateNode('medium', ${mIdx}, ${medIdx})" class="text-slate-300 hover:text-indigo-500 transition-colors" title="編輯名稱"><i class="fa-solid fa-pen text-xs"></i></button>
                             </div>
-                            <div class="flex gap-4 items-center">
+                            
+                            <div class="flex flex-wrap gap-4 items-center">
                                 <div class="flex items-center gap-1 bg-white px-2 py-1 rounded border border-slate-200 shadow-sm">
                                     <span class="text-xs text-slate-400 font-bold">預設權重</span>
                                     <input type="number" min="0" max="100" value="${med.weight || 0}" onchange="updateTemplateField('medium', ${mIdx}, ${medIdx}, 0, 0, 'weight', this.value)" class="w-12 text-center text-sm font-bold text-indigo-600 focus:outline-none focus:border-indigo-400 border border-transparent rounded">
                                     <span class="text-xs text-slate-400">%</span>
                                 </div>
-                                <div class="flex gap-2">
+                                
+                                <div class="flex items-center gap-3 bg-white px-2 py-1.5 rounded border border-slate-200 shadow-sm">
+                                    <label class="flex items-center gap-1 text-xs font-bold text-slate-600 cursor-pointer">
+                                        <input type="checkbox" ${hasProd ? 'checked' : ''} onchange="updateTemplateField('medium', ${mIdx}, ${medIdx}, 0, 0, 'hasProduction', this.checked)" class="w-3.5 h-3.5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"> 生產製造
+                                    </label>
+                                    <label class="flex items-center gap-1 text-xs font-bold text-slate-600 cursor-pointer border-l border-slate-200 pl-3">
+                                        <input type="checkbox" ${hasShip ? 'checked' : ''} onchange="updateTemplateField('medium', ${mIdx}, ${medIdx}, 0, 0, 'hasShipping', this.checked)" class="w-3.5 h-3.5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"> 出貨現場
+                                    </label>
+                                </div>
+
+                                <div class="flex gap-2 ml-auto">
                                     <button onclick="addTemplateNode('equip', ${mIdx}, ${medIdx})" class="text-xs bg-white border border-slate-200 hover:bg-slate-100 text-slate-600 px-2 py-1 rounded font-bold transition-colors">+ 設備</button>
                                     <button onclick="deleteTemplateNode('medium', ${mIdx}, ${medIdx})" class="text-xs text-slate-400 hover:text-rose-500 px-2 py-1 transition-colors"><i class="fa-solid fa-xmark"></i></button>
                                 </div>
@@ -822,7 +884,7 @@
             container.innerHTML = html;
         }
 
-        // 新增節點 (簡易 Prompt)
+        // 新增/編輯/刪除 模板節點
         function addTemplateMajor() {
             let name = prompt('請輸入「大類」名稱：\n(如：機構設計、電控系統)');
             if(name && name.trim()) {
@@ -844,17 +906,14 @@
                 name = prompt(`新增「細項圖面」於 [${state.templateMajors[m].mediums[med].equipments[eq].name}] 底下：`);
                 if(name && name.trim()) { state.templateMajors[m].mediums[med].equipments[eq].details.push({ name: name.trim(), assemblyId: '', bodyId: '', version: '', qty: 1 }); hasChanged = true; }
             }
-            
             if(hasChanged) {
                 renderTemplateTree();
                 syncTemplatesToBackend();
             }
         }
 
-        // 編輯節點名稱
         function editTemplateNode(type, m, med, eq, det) {
             let oldName, newName;
-            
             if(type === 'major') {
                 oldName = state.templateMajors[m].name;
                 newName = prompt('修改「大類」名稱：', oldName);
@@ -879,10 +938,8 @@
             }
         }
 
-        // 刪除節點
         function deleteTemplateNode(type, m, med, eq, det) {
             if(!confirm('確定要刪除此項目嗎？其底下所有的設定都會一併消失。')) return;
-            
             if(type === 'major') state.templateMajors.splice(m, 1);
             else if(type === 'medium') state.templateMajors[m].mediums.splice(med, 1);
             else if(type === 'equip') state.templateMajors[m].mediums[med].equipments.splice(eq, 1);
@@ -892,19 +949,7 @@
             syncTemplatesToBackend();
         }
 
-        // 關閉 Modal 時也同步一次，確保在 input 輸入的平行欄位有存到
-        function closeTemplateModal() {
-            document.getElementById('template-modal-content').classList.add('scale-95');
-            document.getElementById('template-modal-content').classList.remove('scale-100');
-            syncTemplatesToBackend();
-            setTimeout(() => {
-                document.getElementById('template-modal').classList.add('hidden');
-                if(state.currentTab === 'settings') renderSettings();
-            }, 200);
-        }
-
         // --- 專案詳情頁 (Excel 表格視圖) ---
-
         function openProjectDetail(projectId, isEditMode, sourceList) {
             let project;
             if(sourceList === 'active') {
@@ -917,7 +962,7 @@
             state.tempEditData = JSON.parse(JSON.stringify(project));
             state.editingProjectId = projectId;
             state.isEditMode = isEditMode;
-            state.hasUnsavedChanges = false; // 新增：進入時重置未儲存狀態
+            state.hasUnsavedChanges = false; 
             
             document.getElementById('view-main').classList.add('hidden');
             document.getElementById('view-project-detail').classList.remove('hidden');
@@ -941,11 +986,10 @@
         }
 
         function backToMain() {
-            // 新增防呆機制：如果有未儲存的變更，提示使用者
             if (state.isEditMode && state.hasUnsavedChanges) {
                 if (confirm("⚠️ 您有尚未儲存的進度變更！\n\n按下「確定」直接幫您儲存至雲端，\n按下「取消」則放棄這些變更並離開。")) {
                     saveProjectData();
-                    return; // 讓 saveProjectData 完成後自己呼叫 backToMain
+                    return; 
                 }
             }
 
@@ -963,7 +1007,6 @@
 
         function switchPhaseTab(phase) {
             state.activePhaseTab = phase;
-            
             const tabs = {
                 drawing: { el: document.getElementById('tab-drawing'), color: 'blue' },
                 production: { el: document.getElementById('tab-production'), color: 'orange' },
@@ -1012,6 +1055,7 @@
                 columnsHTML += `<th class="border-b-2 border-slate-200 px-3 py-4 text-center text-${colorClass}-700 font-bold bg-${colorClass}-50/50 min-w-[100px]">製作預估工</th>`;
             } else if (phase === 'shipping') {
                 checklist.forEach(col => columnsHTML += `<th class="border-b-2 border-slate-200 px-3 py-4 text-center text-${colorClass}-700 font-bold bg-${colorClass}-50/50 min-w-[100px]">${col}</th>`);
+                columnsHTML += `<th class="border-b-2 border-slate-200 px-3 py-4 text-center text-${colorClass}-700 font-bold bg-${colorClass}-50/50 min-w-[80px]">操作</th>`;
             }
 
             let html = '';
@@ -1054,18 +1098,20 @@
                 major.mediums.forEach((medium, medIdx) => {
                     let medRs = getMediumRowspan(medium);
                     let firstMed = true;
+                    let medHasProd = medium.hasProduction !== false;
+                    let medHasShip = medium.hasShipping !== false;
 
                     medium.equipments.forEach((equip, eqIdx) => {
                         let eqRs = getEquipRowspan(equip);
                         let firstEq = true;
 
                         if (equip.details.length === 0) {
-                            html += renderTableRow(firstMaj, majRs, major.name, firstMed, medRs, medium.name, medium.weight, majIdx, medIdx, firstEq, eqRs, equip.name, eqIdx, null, null, null, phase, isEdit);
+                            html += renderTableRow(firstMaj, majRs, major.name, firstMed, medRs, medium.name, medium.weight, majIdx, medIdx, firstEq, eqRs, equip.name, eqIdx, null, null, null, phase, isEdit, medHasProd, medHasShip);
                             firstMaj = false; firstMed = false; firstEq = false;
                         } else {
                             equip.details.forEach((det, detIdx) => {
                                 const pId = `${majIdx}-${medIdx}-${eqIdx}-${detIdx}`;
-                                html += renderTableRow(firstMaj, majRs, major.name, firstMed, medRs, medium.name, medium.weight, majIdx, medIdx, firstEq, eqRs, equip.name, eqIdx, det, detIdx, pId, phase, isEdit);
+                                html += renderTableRow(firstMaj, majRs, major.name, firstMed, medRs, medium.name, medium.weight, majIdx, medIdx, firstEq, eqRs, equip.name, eqIdx, det, detIdx, pId, phase, isEdit, medHasProd, medHasShip);
                                 firstMaj = false; firstMed = false; firstEq = false;
                             });
                         }
@@ -1077,7 +1123,13 @@
             container.innerHTML = html;
         }
 
-        function renderTableRow(firstMaj, majRs, majName, firstMed, medRs, medName, medWeight, majIdx, medIdx, firstEq, eqRs, eqName, eqIdx, det, detIdx, pId, phase, isEdit) {
+        function updatePhaseToggle(majIdx, medIdx, field, val) {
+            state.tempEditData.majors[majIdx].mediums[medIdx][field] = val;
+            markUnsaved();
+            renderPhaseTable(state.activePhaseTab); 
+        }
+
+        function renderTableRow(firstMaj, majRs, majName, firstMed, medRs, medName, medWeight, majIdx, medIdx, firstEq, eqRs, eqName, eqIdx, det, detIdx, pId, phase, isEdit, medHasProd, medHasShip) {
             let rowHtml = `<tr class="hover:bg-slate-50/80 transition-colors">`;
             
             if (firstMaj) {
@@ -1094,13 +1146,21 @@
             if (firstMed) {
                 rowHtml += `<td rowspan="${medRs}" class="border-r border-slate-100 px-4 py-3 bg-white align-top">
                                 <div class="font-bold text-slate-700 mb-2">${medName}</div>
-                                <div class="flex items-center gap-1 bg-slate-50 rounded-lg px-2 py-1 w-max border border-slate-100">
+                                <div class="flex items-center gap-1 bg-slate-50 rounded-lg px-2 py-1 w-max border border-slate-100 mb-2">
                                     <span class="text-[10px] text-slate-400 font-bold uppercase">Weight</span>
                                     <input type="number" min="0" max="100" value="${medWeight}" 
                                            oninput="updateWeight(${majIdx}, ${medIdx}, this.value)" 
                                            ${!isEdit ? 'disabled' : ''}
                                            class="w-10 text-center text-sm font-black text-indigo-600 bg-transparent focus:outline-none focus:bg-white rounded">
                                     <span class="text-xs text-slate-400">%</span>
+                                </div>
+                                <div class="flex flex-col gap-1.5 mb-2 bg-slate-50 p-2 rounded-lg border border-slate-100 w-max">
+                                    <label class="flex items-center gap-1.5 text-xs font-bold ${medHasProd ? 'text-orange-600' : 'text-slate-400'} cursor-pointer">
+                                        <input type="checkbox" ${medHasProd ? 'checked' : ''} ${!isEdit ? 'disabled' : ''} onchange="updatePhaseToggle(${majIdx}, ${medIdx}, 'hasProduction', this.checked)" class="w-3.5 h-3.5 text-orange-500 rounded border-slate-300 focus:ring-orange-500"> 需生產製造
+                                    </label>
+                                    <label class="flex items-center gap-1.5 text-xs font-bold ${medHasShip ? 'text-emerald-600' : 'text-slate-400'} cursor-pointer">
+                                        <input type="checkbox" ${medHasShip ? 'checked' : ''} ${!isEdit ? 'disabled' : ''} onchange="updatePhaseToggle(${majIdx}, ${medIdx}, 'hasShipping', this.checked)" class="w-3.5 h-3.5 text-emerald-500 rounded border-slate-300 focus:ring-emerald-500"> 需出貨現場
+                                    </label>
                                 </div>
                                 ${isEdit ? `
                                 <div class="flex gap-2 mt-3">
@@ -1124,7 +1184,7 @@
             
             if (!det) {
                 rowHtml += `<td colspan="5" class="px-4 py-3 text-slate-300 italic text-center">空空如也，沒有細項</td>`;
-                let colCount = (phase==='drawing') ? 6 : (phase==='production' ? 6 : 3);
+                let colCount = (phase==='drawing') ? 6 : (phase==='production' ? (!medHasProd?1:6) : (!medHasShip?1:4));
                 for(let i=0; i<colCount; i++) rowHtml += `<td class="bg-slate-50/30 border-l border-slate-50"></td>`;
             } else {
                 let aId = det.assemblyId || '';
@@ -1169,27 +1229,38 @@
                                     </td>`;
                     }
                 } else if (phase === 'production') {
-                    for(let i=0; i<4; i++) {
-                        let checked = det.production.checks[i] ? 'checked' : '';
-                        rowHtml += `<td class="border-l border-slate-50 p-2 text-center align-middle bg-${colorBase}-50/10 hover:bg-${colorBase}-50/40 transition-colors">
-                                        <div class="flex justify-center">
-                                            <input type="checkbox" ${checked} ${!isEdit ? 'disabled' : ''} onchange="toggleCheck('${pId}', 'prod', ${i}, this.checked)" class="w-5 h-5 text-${colorBase}-500 rounded border-slate-300 focus:ring-${colorBase}-500 cursor-pointer shadow-sm">
-                                        </div>
+                    if (!medHasProd) {
+                        if (firstMed) rowHtml += `<td colspan="6" rowspan="${medRs}" class="border-l border-slate-50 p-4 text-center align-middle bg-slate-50 text-slate-400 font-bold italic text-base">此中類設定為「不需生產製造」</td>`;
+                    } else {
+                        for(let i=0; i<4; i++) {
+                            let checked = det.production.checks[i] ? 'checked' : '';
+                            rowHtml += `<td class="border-l border-slate-50 p-2 text-center align-middle bg-${colorBase}-50/10 hover:bg-${colorBase}-50/40 transition-colors">
+                                            <div class="flex justify-center">
+                                                <input type="checkbox" ${checked} ${!isEdit ? 'disabled' : ''} onchange="toggleCheck('${pId}', 'prod', ${i}, this.checked)" class="w-5 h-5 text-${colorBase}-500 rounded border-slate-300 focus:ring-${colorBase}-500 cursor-pointer shadow-sm">
+                                            </div>
+                                        </td>`;
+                        }
+                        rowHtml += `<td class="border-l border-slate-50 p-2 text-center bg-${colorBase}-50/10">
+                                        <input type="text" value="${det.production.inputs.material}" ${!isEdit ? 'disabled' : ''} onchange="updateInput('${pId}', 'material', this.value)" class="w-16 text-center border border-slate-200 rounded-lg px-2 py-1 text-sm bg-white focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400 shadow-sm placeholder:text-slate-200" placeholder="-">
+                                    </td>`;
+                        rowHtml += `<td class="border-l border-slate-50 p-2 text-center bg-${colorBase}-50/10">
+                                        <input type="text" value="${det.production.inputs.work}" ${!isEdit ? 'disabled' : ''} onchange="updateInput('${pId}', 'work', this.value)" class="w-16 text-center border border-slate-200 rounded-lg px-2 py-1 text-sm bg-white focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400 shadow-sm placeholder:text-slate-200" placeholder="-">
                                     </td>`;
                     }
-                    rowHtml += `<td class="border-l border-slate-50 p-2 text-center bg-${colorBase}-50/10">
-                                    <input type="text" value="${det.production.inputs.material}" ${!isEdit ? 'disabled' : ''} onchange="updateInput('${pId}', 'material', this.value)" class="w-16 text-center border border-slate-200 rounded-lg px-2 py-1 text-sm bg-white focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400 shadow-sm placeholder:text-slate-200" placeholder="-">
-                                </td>`;
-                    rowHtml += `<td class="border-l border-slate-50 p-2 text-center bg-${colorBase}-50/10">
-                                    <input type="text" value="${det.production.inputs.work}" ${!isEdit ? 'disabled' : ''} onchange="updateInput('${pId}', 'work', this.value)" class="w-16 text-center border border-slate-200 rounded-lg px-2 py-1 text-sm bg-white focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400 shadow-sm placeholder:text-slate-200" placeholder="-">
-                                </td>`;
                 } else if (phase === 'shipping') {
-                    for(let i=0; i<3; i++) {
-                        let checked = det.shipping[i] ? 'checked' : '';
-                        rowHtml += `<td class="border-l border-slate-50 p-2 text-center align-middle bg-${colorBase}-50/10 hover:bg-${colorBase}-50/40 transition-colors">
-                                        <div class="flex justify-center">
-                                            <input type="checkbox" ${checked} ${!isEdit ? 'disabled' : ''} onchange="toggleCheck('${pId}', 'ship', ${i}, this.checked)" class="w-5 h-5 text-${colorBase}-500 rounded border-slate-300 focus:ring-${colorBase}-500 cursor-pointer shadow-sm">
-                                        </div>
+                    if (!medHasShip) {
+                        if (firstMed) rowHtml += `<td colspan="4" rowspan="${medRs}" class="border-l border-slate-50 p-4 text-center align-middle bg-slate-50 text-slate-400 font-bold italic text-base">此中類設定為「不需出貨現場」</td>`;
+                    } else {
+                        for(let i=0; i<3; i++) {
+                            let checked = det.shipping[i] ? 'checked' : '';
+                            rowHtml += `<td class="border-l border-slate-50 p-2 text-center align-middle bg-${colorBase}-50/10 hover:bg-${colorBase}-50/40 transition-colors">
+                                            <div class="flex justify-center">
+                                                <input type="checkbox" ${checked} ${!isEdit ? 'disabled' : ''} onchange="toggleCheck('${pId}', 'ship', ${i}, this.checked)" class="w-5 h-5 text-${colorBase}-500 rounded border-slate-300 focus:ring-${colorBase}-500 cursor-pointer shadow-sm">
+                                            </div>
+                                        </td>`;
+                        }
+                        rowHtml += `<td class="border-l border-slate-50 p-2 text-center align-middle bg-${colorBase}-50/10">
+                                        ${isEdit ? `<button onclick="selectAllShipping('${pId}')" class="text-xs bg-emerald-100 hover:bg-emerald-200 text-emerald-700 px-3 py-1.5 rounded-lg font-bold transition-colors shadow-sm active:scale-95"><i class="fa-solid fa-check-double mr-1"></i>全選</button>` : '-'}
                                     </td>`;
                     }
                 }
@@ -1198,7 +1269,7 @@
             return rowHtml;
         }
 
-        // --- 動態編輯已建專案的節點 ---
+        // 動態編輯已建專案的節點
         function addProjectNode(type, m, med, eq) {
             let name;
             let hasChanged = false;
@@ -1207,7 +1278,7 @@
                 if(name && name.trim()) { state.tempEditData.majors.push({ name: name.trim(), mediums: [] }); hasChanged = true; }
             } else if(type === 'medium') {
                 name = prompt(`新增「中類」於 [${state.tempEditData.majors[m].name}] 底下：`);
-                if(name && name.trim()) { state.tempEditData.majors[m].mediums.push({ name: name.trim(), weight: 0, equipments: [] }); hasChanged = true; }
+                if(name && name.trim()) { state.tempEditData.majors[m].mediums.push({ name: name.trim(), weight: 0, hasProduction: true, hasShipping: true, equipments: [] }); hasChanged = true; }
             } else if(type === 'equip') {
                 name = prompt(`新增「設備」於 [${state.tempEditData.majors[m].mediums[med].name}] 底下：`);
                 if(name && name.trim()) { state.tempEditData.majors[m].mediums[med].equipments.push({ name: name.trim(), details: [] }); hasChanged = true; }
@@ -1226,7 +1297,7 @@
             
             if(hasChanged) {
                 renderPhaseTable(state.activePhaseTab);
-                markUnsaved(); // 標記為未儲存並更新進度
+                markUnsaved(); 
             }
         }
 
@@ -1248,7 +1319,7 @@
             
             if(newName && newName.trim() && newName !== oldName) {
                 renderPhaseTable(state.activePhaseTab);
-                markUnsaved(); // 標記為未儲存並更新進度
+                markUnsaved(); 
             }
         }
 
@@ -1261,7 +1332,7 @@
             else if(type === 'detail') state.tempEditData.majors[m].mediums[med].equipments[eq].details.splice(det, 1);
             
             renderPhaseTable(state.activePhaseTab);
-            markUnsaved(); // 標記為未儲存並更新進度
+            markUnsaved(); 
         }
 
         function getDetailObj(pId) {
@@ -1287,6 +1358,14 @@
             if (phase === 'prod') detail.production.checks[idx] = isChecked;
             if (phase === 'ship') detail.shipping[idx] = isChecked;
             markUnsaved();
+        }
+
+        // 新增：出貨現場一鍵全選功能
+        function selectAllShipping(pId) {
+            const detail = getDetailObj(pId);
+            detail.shipping = [true, true, true];
+            markUnsaved();
+            renderPhaseTable('shipping'); 
         }
 
         function updateInput(pId, type, val) {
@@ -1325,7 +1404,6 @@
                 
                 if(state.isEditMode) {
                     saveBtn.disabled = true;
-                    // 清除可能殘留的樣式並套用鎖死樣式
                     saveBtn.classList.replace('bg-indigo-600', 'bg-slate-300');
                     saveBtn.classList.replace('bg-amber-500', 'bg-slate-300');
                     saveBtn.classList.replace('hover:bg-indigo-700', 'hover:bg-slate-300');
@@ -1347,7 +1425,6 @@
                     saveBtn.classList.remove('bg-slate-300', 'hover:bg-slate-300', 'cursor-not-allowed');
                     saveBtn.classList.add('shadow-md', 'shadow-indigo-200', 'hover:-translate-y-0.5');
                     
-                    // 根據是否有未儲存的變更，給予強烈的視覺提示
                     if (state.hasUnsavedChanges) {
                         saveBtn.innerHTML = '<i class="fa-solid fa-circle-exclamation"></i> 尚未儲存 (請點擊)';
                         saveBtn.classList.remove('bg-indigo-600', 'hover:bg-indigo-700');
@@ -1380,7 +1457,7 @@
                     const res = await response.json();
                     
                     if(res.status === 'success') {
-                        state.hasUnsavedChanges = false; // 新增：寫入成功後解除未儲存狀態
+                        state.hasUnsavedChanges = false; 
                         alert('專案進度已成功同步至 Google Sheets！');
                         backToMain();
                     } else {
@@ -1389,7 +1466,6 @@
                 } catch (error) {
                     alert('網路連線異常，請稍後再試。');
                 } finally {
-                    // 如果網路異常導致沒有跳出畫面，恢復按鈕狀態供再次點擊
                     if (state.hasUnsavedChanges) {
                         saveBtn.innerHTML = origHtml;
                         saveBtn.disabled = false;
@@ -1403,7 +1479,6 @@
                 const index = state.projects.findIndex(p => p.id === id);
                 if(index > -1) {
                     let proj = state.projects[index];
-                    // 先暫存原始狀態，若雲端寫入失敗可復原
                     const origStatus = proj.status;
                     
                     proj.status = 'closed';
@@ -1423,11 +1498,11 @@
                             renderDashboard();
                             alert('專案已順利結案並封存。');
                         } else {
-                            proj.status = origStatus; // 還原
+                            proj.status = origStatus; 
                             alert('結案失敗：' + res.message);
                         }
                     } catch (error) {
-                        proj.status = origStatus; // 還原
+                        proj.status = origStatus; 
                         alert('網路連線異常，請稍後再試。');
                     }
                 }
@@ -1503,7 +1578,6 @@
             }, 300);
         }
 
-        // --- 系統初始化載入 ---
         async function fetchInitialData() {
             try {
                 const response = await fetch(`${API_URL}?action=getInitialData`);
@@ -1514,7 +1588,6 @@
                     state.closedProjects = result.data.closedProjects || [];
                     state.templateMajors = result.data.templateMajors || [];
                     
-                    // 載入完成，隱藏全域 Loading
                     const loader = document.getElementById('global-loader');
                     loader.classList.add('opacity-0');
                     setTimeout(() => loader.classList.add('hidden'), 500);
@@ -1529,7 +1602,6 @@
         }
 
         window.onload = () => {
-            // 取代原本直接呼叫 switchTab，改為先向 Google Sheets 要資料
             fetchInitialData();
         };
 

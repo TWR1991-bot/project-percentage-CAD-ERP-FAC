@@ -241,6 +241,7 @@
             currentTab: 'dashboard',
             editingProjectId: null,
             isEditMode: false,
+            hasUnsavedChanges: false, // 新增：追蹤是否有未儲存的變更
             activePhaseTab: 'drawing', 
             tempEditData: null,
             selectedYear: null,
@@ -916,6 +917,7 @@
             state.tempEditData = JSON.parse(JSON.stringify(project));
             state.editingProjectId = projectId;
             state.isEditMode = isEditMode;
+            state.hasUnsavedChanges = false; // 新增：進入時重置未儲存狀態
             
             document.getElementById('view-main').classList.add('hidden');
             document.getElementById('view-project-detail').classList.remove('hidden');
@@ -939,8 +941,17 @@
         }
 
         function backToMain() {
+            // 新增防呆機制：如果有未儲存的變更，提示使用者
+            if (state.isEditMode && state.hasUnsavedChanges) {
+                if (confirm("⚠️ 您有尚未儲存的進度變更！\n\n按下「確定」直接幫您儲存至雲端，\n按下「取消」則放棄這些變更並離開。")) {
+                    saveProjectData();
+                    return; // 讓 saveProjectData 完成後自己呼叫 backToMain
+                }
+            }
+
             state.tempEditData = null;
             state.editingProjectId = null;
+            state.hasUnsavedChanges = false;
             document.getElementById('view-project-detail').classList.add('hidden');
             document.getElementById('view-main').classList.remove('hidden');
             if(state.currentTab === 'dashboard') {
@@ -1003,7 +1014,18 @@
                 checklist.forEach(col => columnsHTML += `<th class="border-b-2 border-slate-200 px-3 py-4 text-center text-${colorClass}-700 font-bold bg-${colorClass}-50/50 min-w-[100px]">${col}</th>`);
             }
 
-            let html = `
+            let html = '';
+            if (isEdit) {
+                html += `
+                <div class="mb-4">
+                    <button onclick="addProjectNode('major')" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-600 px-4 py-2 rounded-xl font-bold text-sm transition-colors shadow-sm">
+                        <i class="fa-solid fa-plus mr-1"></i> 新增 大類
+                    </button>
+                </div>
+                `;
+            }
+
+            html += `
             <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden w-max min-w-full">
             <table class="w-full text-sm border-collapse" id="data-table">
                 <thead class="sticky-header">
@@ -1058,7 +1080,17 @@
         function renderTableRow(firstMaj, majRs, majName, firstMed, medRs, medName, medWeight, majIdx, medIdx, firstEq, eqRs, eqName, det, pId, phase, isEdit) {
             let rowHtml = `<tr class="hover:bg-slate-50/80 transition-colors">`;
             
-            if (firstMaj) rowHtml += `<td rowspan="${majRs}" class="border-r border-slate-100 px-4 py-3 font-black text-slate-700 align-top bg-white/50">${majName}</td>`;
+            if (firstMaj) {
+                rowHtml += `<td rowspan="${majRs}" class="border-r border-slate-100 px-4 py-3 align-top bg-white/50">
+                                <div class="font-black text-slate-700">${majName}</div>
+                                ${isEdit ? `
+                                <div class="flex gap-2 mt-2">
+                                    <button onclick="editProjectNode('major', ${majIdx})" title="編輯名稱" class="text-slate-400 hover:text-indigo-500 transition-colors"><i class="fa-solid fa-pen text-xs"></i></button>
+                                    <button onclick="addProjectNode('medium', ${majIdx})" title="新增中類" class="text-slate-400 hover:text-emerald-500 transition-colors"><i class="fa-solid fa-plus text-xs"></i></button>
+                                    <button onclick="deleteProjectNode('major', ${majIdx})" title="刪除大類" class="text-slate-400 hover:text-rose-500 transition-colors"><i class="fa-solid fa-trash text-xs"></i></button>
+                                </div>` : ''}
+                            </td>`;
+            }
             if (firstMed) {
                 rowHtml += `<td rowspan="${medRs}" class="border-r border-slate-100 px-4 py-3 bg-white align-top">
                                 <div class="font-bold text-slate-700 mb-2">${medName}</div>
@@ -1070,9 +1102,25 @@
                                            class="w-10 text-center text-sm font-black text-indigo-600 bg-transparent focus:outline-none focus:bg-white rounded">
                                     <span class="text-xs text-slate-400">%</span>
                                 </div>
+                                ${isEdit ? `
+                                <div class="flex gap-2 mt-3">
+                                    <button onclick="editProjectNode('medium', ${majIdx}, ${medIdx})" title="編輯名稱" class="text-slate-400 hover:text-indigo-500 transition-colors"><i class="fa-solid fa-pen text-xs"></i></button>
+                                    <button onclick="addProjectNode('equip', ${majIdx}, ${medIdx})" title="新增設備" class="text-slate-400 hover:text-emerald-500 transition-colors"><i class="fa-solid fa-plus text-xs"></i></button>
+                                    <button onclick="deleteProjectNode('medium', ${majIdx}, ${medIdx})" title="刪除中類" class="text-slate-400 hover:text-rose-500 transition-colors"><i class="fa-solid fa-trash text-xs"></i></button>
+                                </div>` : ''}
                             </td>`;
             }
-            if (firstEq) rowHtml += `<td rowspan="${eqRs}" class="border-r border-slate-100 px-4 py-3 bg-white align-top text-slate-600 font-bold">${eqName}</td>`;
+            if (firstEq) {
+                rowHtml += `<td rowspan="${eqRs}" class="border-r border-slate-100 px-4 py-3 bg-white align-top">
+                                <div class="text-slate-600 font-bold">${eqName}</div>
+                                ${isEdit ? `
+                                <div class="flex gap-2 mt-2">
+                                    <button onclick="editProjectNode('equip', ${majIdx}, ${medIdx}, ${eqIdx})" title="編輯名稱" class="text-slate-400 hover:text-indigo-500 transition-colors"><i class="fa-solid fa-pen text-xs"></i></button>
+                                    <button onclick="addProjectNode('detail', ${majIdx}, ${medIdx}, ${eqIdx})" title="新增細項" class="text-slate-400 hover:text-emerald-500 transition-colors"><i class="fa-solid fa-plus text-xs"></i></button>
+                                    <button onclick="deleteProjectNode('equip', ${majIdx}, ${medIdx}, ${eqIdx})" title="刪除設備" class="text-slate-400 hover:text-rose-500 transition-colors"><i class="fa-solid fa-trash text-xs"></i></button>
+                                </div>` : ''}
+                            </td>`;
+            }
             
             if (!det) {
                 rowHtml += `<td colspan="5" class="px-4 py-3 text-slate-300 italic text-center">空空如也，沒有細項</td>`;
@@ -1096,8 +1144,11 @@
                     </td>
                 `;
 
-                rowHtml += `<td class="border-r border-slate-100 px-4 py-3 text-slate-700 font-bold">
-                                <input type="text" value="${det.name}" ${!isEdit ? 'disabled' : ''} onchange="updateDetailField('${pId}', 'name', this.value)" class="w-full bg-transparent border-b border-transparent focus:border-indigo-300 focus:outline-none">
+                rowHtml += `<td class="border-r border-slate-100 px-4 py-3 text-slate-700 font-bold group">
+                                <div class="flex items-center gap-2 w-full">
+                                    <input type="text" value="${det.name}" ${!isEdit ? 'disabled' : ''} onchange="updateDetailField('${pId}', 'name', this.value)" class="flex-1 min-w-0 bg-transparent border-b border-transparent focus:border-indigo-300 focus:outline-none">
+                                    ${isEdit ? `<button onclick="deleteProjectNode('detail', ${majIdx}, ${medIdx}, ${eqIdx}, ${detIdx})" class="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-rose-500 transition-opacity shrink-0" title="刪除細項"><i class="fa-solid fa-xmark text-sm"></i></button>` : ''}
+                                </div>
                             </td>`;
 
                 rowHtml += `
@@ -1147,19 +1198,87 @@
             return rowHtml;
         }
 
-        function getDetailObj(pIdStr) {
-            const [maj, med, eq, det] = pIdStr.split('-').map(Number);
+        // --- 動態編輯已建專案的節點 ---
+        function addProjectNode(type, m, med, eq) {
+            let name;
+            let hasChanged = false;
+            if(type === 'major') {
+                name = prompt('請輸入「大類」名稱：');
+                if(name && name.trim()) { state.tempEditData.majors.push({ name: name.trim(), mediums: [] }); hasChanged = true; }
+            } else if(type === 'medium') {
+                name = prompt(`新增「中類」於 [${state.tempEditData.majors[m].name}] 底下：`);
+                if(name && name.trim()) { state.tempEditData.majors[m].mediums.push({ name: name.trim(), weight: 0, equipments: [] }); hasChanged = true; }
+            } else if(type === 'equip') {
+                name = prompt(`新增「設備」於 [${state.tempEditData.majors[m].mediums[med].name}] 底下：`);
+                if(name && name.trim()) { state.tempEditData.majors[m].mediums[med].equipments.push({ name: name.trim(), details: [] }); hasChanged = true; }
+            } else if(type === 'detail') {
+                name = prompt(`新增「細項圖面」於 [${state.tempEditData.majors[m].mediums[med].equipments[eq].name}] 底下：`);
+                if(name && name.trim()) { 
+                    state.tempEditData.majors[m].mediums[med].equipments[eq].details.push({ 
+                        name: name.trim(), assemblyId: '', bodyId: '', version: '', qty: 1,
+                        drawing: [false, false, false, false, false, false],
+                        production: { checks: [false, false, false, false], inputs: { material: '', work: '' } },
+                        shipping: [false, false, false]
+                    }); 
+                    hasChanged = true; 
+                }
+            }
+            
+            if(hasChanged) {
+                renderPhaseTable(state.activePhaseTab);
+                markUnsaved(); // 標記為未儲存並更新進度
+            }
+        }
+
+        function editProjectNode(type, m, med, eq) {
+            let oldName, newName;
+            if(type === 'major') {
+                oldName = state.tempEditData.majors[m].name;
+                newName = prompt('修改「大類」名稱：', oldName);
+                if(newName && newName.trim()) state.tempEditData.majors[m].name = newName.trim();
+            } else if(type === 'medium') {
+                oldName = state.tempEditData.majors[m].mediums[med].name;
+                newName = prompt('修改「中類」名稱：', oldName);
+                if(newName && newName.trim()) state.tempEditData.majors[m].mediums[med].name = newName.trim();
+            } else if(type === 'equip') {
+                oldName = state.tempEditData.majors[m].mediums[med].equipments[eq].name;
+                newName = prompt('修改「設備」名稱：', oldName);
+                if(newName && newName.trim()) state.tempEditData.majors[m].mediums[med].equipments[eq].name = newName.trim();
+            }
+            
+            if(newName && newName.trim() && newName !== oldName) {
+                renderPhaseTable(state.activePhaseTab);
+                markUnsaved(); // 標記為未儲存並更新進度
+            }
+        }
+
+        function deleteProjectNode(type, m, med, eq, det) {
+            if(!confirm('確定要刪除此項目嗎？其底下的所有設定與進度都會一併移除！')) return;
+            
+            if(type === 'major') state.tempEditData.majors.splice(m, 1);
+            else if(type === 'medium') state.tempEditData.majors[m].mediums.splice(med, 1);
+            else if(type === 'equip') state.tempEditData.majors[m].mediums[med].equipments.splice(eq, 1);
+            else if(type === 'detail') state.tempEditData.majors[m].mediums[med].equipments[eq].details.splice(det, 1);
+            
+            renderPhaseTable(state.activePhaseTab);
+            markUnsaved(); // 標記為未儲存並更新進度
+        }
+
+        function getDetailObj(pId) {
+            const [maj, med, eq, det] = pId.split('-').map(Number);
             return state.tempEditData.majors[maj].mediums[med].equipments[eq].details[det];
         }
 
-        function updateDetailField(pId, field, val) {
-            const detail = getDetailObj(pIdStr); // Wait, small fix on param name internally handled below
+        function markUnsaved() {
+            if (!state.isEditMode) return;
+            state.hasUnsavedChanges = true;
+            updateDetailProgress();
         }
         
-        // Correctly named function replacing the empty one above
         function updateDetailField(pId, field, val) {
             const detail = getDetailObj(pId);
             detail[field] = val;
+            markUnsaved();
         }
 
         function toggleCheck(pId, phase, idx, isChecked) {
@@ -1167,17 +1286,18 @@
             if (phase === 'draw') detail.drawing[idx] = isChecked;
             if (phase === 'prod') detail.production.checks[idx] = isChecked;
             if (phase === 'ship') detail.shipping[idx] = isChecked;
-            updateDetailProgress();
+            markUnsaved();
         }
 
         function updateInput(pId, type, val) {
             const detail = getDetailObj(pId);
             detail.production.inputs[type] = val;
+            markUnsaved();
         }
 
         function updateWeight(majIdx, medIdx, val) {
             state.tempEditData.majors[majIdx].mediums[medIdx].weight = parseFloat(val) || 0;
-            updateDetailProgress();
+            markUnsaved();
         }
 
         function updateDetailProgress() {
@@ -1205,9 +1325,12 @@
                 
                 if(state.isEditMode) {
                     saveBtn.disabled = true;
+                    // 清除可能殘留的樣式並套用鎖死樣式
                     saveBtn.classList.replace('bg-indigo-600', 'bg-slate-300');
+                    saveBtn.classList.replace('bg-amber-500', 'bg-slate-300');
                     saveBtn.classList.replace('hover:bg-indigo-700', 'hover:bg-slate-300');
-                    saveBtn.classList.remove('shadow-md', 'shadow-indigo-200', 'hover:-translate-y-0.5');
+                    saveBtn.classList.replace('hover:bg-amber-600', 'hover:bg-slate-300');
+                    saveBtn.classList.remove('shadow-md', 'shadow-indigo-200', 'hover:-translate-y-0.5', 'ring-4', 'ring-amber-200');
                     saveBtn.classList.add('cursor-not-allowed');
                     saveBtn.innerHTML = '<i class="fa-solid fa-lock"></i> 權重錯誤';
                 }
@@ -1221,11 +1344,19 @@
 
                 if(state.isEditMode) {
                     saveBtn.disabled = false;
-                    saveBtn.classList.replace('bg-slate-300', 'bg-indigo-600');
-                    saveBtn.classList.replace('hover:bg-slate-300', 'hover:bg-indigo-700');
+                    saveBtn.classList.remove('bg-slate-300', 'hover:bg-slate-300', 'cursor-not-allowed');
                     saveBtn.classList.add('shadow-md', 'shadow-indigo-200', 'hover:-translate-y-0.5');
-                    saveBtn.classList.remove('cursor-not-allowed');
-                    saveBtn.innerHTML = '<i class="fa-solid fa-check"></i> 儲存變更';
+                    
+                    // 根據是否有未儲存的變更，給予強烈的視覺提示
+                    if (state.hasUnsavedChanges) {
+                        saveBtn.innerHTML = '<i class="fa-solid fa-circle-exclamation"></i> 尚未儲存 (請點擊)';
+                        saveBtn.classList.remove('bg-indigo-600', 'hover:bg-indigo-700');
+                        saveBtn.classList.add('bg-amber-500', 'hover:bg-amber-600', 'ring-4', 'ring-amber-200');
+                    } else {
+                        saveBtn.innerHTML = '<i class="fa-solid fa-check"></i> 儲存變更';
+                        saveBtn.classList.remove('bg-amber-500', 'hover:bg-amber-600', 'ring-4', 'ring-amber-200');
+                        saveBtn.classList.add('bg-indigo-600', 'hover:bg-indigo-700');
+                    }
                 }
             }
         }
@@ -1249,6 +1380,7 @@
                     const res = await response.json();
                     
                     if(res.status === 'success') {
+                        state.hasUnsavedChanges = false; // 新增：寫入成功後解除未儲存狀態
                         alert('專案進度已成功同步至 Google Sheets！');
                         backToMain();
                     } else {
@@ -1257,8 +1389,11 @@
                 } catch (error) {
                     alert('網路連線異常，請稍後再試。');
                 } finally {
-                    saveBtn.innerHTML = origHtml;
-                    saveBtn.disabled = false;
+                    // 如果網路異常導致沒有跳出畫面，恢復按鈕狀態供再次點擊
+                    if (state.hasUnsavedChanges) {
+                        saveBtn.innerHTML = origHtml;
+                        saveBtn.disabled = false;
+                    }
                 }
             }
         }

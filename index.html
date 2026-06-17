@@ -10,23 +10,30 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     
     <style>
-        /* ===== 科技感/工業風 主題 ===== */
+        /* ===== 科技感/工業風 主題（舒適深藍版） ===== */
         :root {
-            --c-bg:        #0d1117;   /* 深空黑 */
-            --c-surface:   #161b22;   /* 卡片底色 */
-            --c-surface2:  #1c2333;   /* 次層面 */
-            --c-border:    #30363d;   /* 邊框 */
-            --c-border2:   #21262d;   /* 淺邊框 */
-            --c-accent:    #1d6fa4;   /* 主要藍 */
-            --c-accent-h:  #2589c7;   /* hover 藍 */
-            --c-accent2:   #0a3d6b;   /* 深藍底 */
-            --c-cyan:      #39d0d8;   /* 科技青 (點綴) */
-            --c-text:      #c9d1d9;   /* 主文字 */
-            --c-text2:     #8b949e;   /* 次文字 */
-            --c-text3:     #4a5568;   /* 暗文字 */
-            --c-success:   #238636;
-            --c-warn:      #9e6a03;
-            --c-danger:    #b91c1c;
+            --c-bg:        #1a2035;   /* 深海軍藍（不再全黑） */
+            --c-surface:   #232f47;   /* 卡片底色 */
+            --c-surface2:  #2c3a54;   /* 次層面 / input */
+            --c-border:    #3d4f6a;   /* 邊框 */
+            --c-border2:   #2c3a54;   /* 淺邊框 */
+
+            /* 編輯 / 檢視頁專用（更亮一層） */
+            --c-edit-bg:      #243351;
+            --c-edit-surface: #2e4068;
+            --c-edit-surface2:#364a75;
+            --c-edit-border:  #4a6090;
+
+            --c-accent:    #2b82c9;   /* 主要藍（稍亮） */
+            --c-accent-h:  #3a9de0;   /* hover 藍 */
+            --c-accent2:   #1a3d6b;   /* 深藍底 */
+            --c-cyan:      #4dd9e0;   /* 科技青（柔化） */
+            --c-text:      #dde3ec;   /* 主文字（更亮） */
+            --c-text2:     #9aaabe;   /* 次文字（藍灰調） */
+            --c-text3:     #5e7494;   /* 暗文字 */
+            --c-success:   #2ea043;
+            --c-warn:      #d29922;
+            --c-danger:    #e05252;
         }
 
         ::-webkit-scrollbar { width: 6px; height: 6px; }
@@ -34,12 +41,12 @@
         ::-webkit-scrollbar-thumb { background: #30363d; border-radius: 3px; }
         ::-webkit-scrollbar-thumb:hover { background: #484f58; }
 
-        /* 背景：深色細格網紋（工業感） */
+        /* 背景：深藍格網紋（工業感，柔化版） */
         .bg-healing {
             background-color: var(--c-bg);
             background-image:
-                linear-gradient(var(--c-border2) 1px, transparent 1px),
-                linear-gradient(90deg, var(--c-border2) 1px, transparent 1px);
+                linear-gradient(rgba(61,79,106,0.5) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(61,79,106,0.5) 1px, transparent 1px);
             background-size: 32px 32px;
         }
 
@@ -195,10 +202,96 @@
 
         /* 詳情頁 header */
         #view-project-detail > header {
-            background: var(--c-surface) !important;
-            border-bottom: 1px solid var(--c-border) !important;
+            background: #f8fafc !important;
+            border-bottom: 1px solid #e2e8f0 !important;
+            color: #1e293b !important;
         }
-        #view-project-detail { background: var(--c-bg) !important; }
+        /* 詳情頁整體：淺色底深色字 */
+        #view-project-detail {
+            background: #f1f5f9 !important;
+            color: #1e293b !important;
+        }
+        /* 詳情頁卡片 */
+        #view-project-detail .bg-white {
+            background: #ffffff !important;
+            border-color: #e2e8f0 !important;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.06) !important;
+        }
+        #view-project-detail .bg-slate-50 {
+            background: #f8fafc !important;
+            border-color: #e9eef5 !important;
+        }
+        /* 詳情頁文字色全部拉回深色 */
+        #view-project-detail,
+        #view-project-detail * {
+            color: inherit;
+        }
+        #view-project-detail .text-slate-800,
+        #view-project-detail .text-slate-700 { color: #1e293b !important; }
+        #view-project-detail .text-slate-600  { color: #334155 !important; }
+        #view-project-detail .text-slate-500,
+        #view-project-detail .text-slate-400  { color: #64748b !important; }
+        #view-project-detail .text-slate-300  { color: #94a3b8 !important; }
+        #view-project-detail .text-indigo-700 { color: #3730a3 !important; }
+        #view-project-detail .text-indigo-600,
+        #view-project-detail .text-indigo-500 { color: #4f46e5 !important; }
+        #view-project-detail .text-blue-600   { color: #2563eb !important; }
+        #view-project-detail .text-orange-600 { color: #ea580c !important; }
+        #view-project-detail .text-emerald-600 { color: #059669 !important; }
+        /* 邊框 */
+        #view-project-detail .border-slate-100,
+        #view-project-detail .border-slate-200 { border-color: #e2e8f0 !important; }
+        /* progress box */
+        #view-project-detail .bg-blue-50\/50    { background: rgba(59,130,246,0.08) !important; border-color: rgba(59,130,246,0.2) !important; }
+        #view-project-detail .bg-orange-50\/50  { background: rgba(249,115,22,0.08) !important; border-color: rgba(249,115,22,0.2) !important; }
+        #view-project-detail .bg-emerald-50\/50 { background: rgba(16,185,129,0.08) !important; border-color: rgba(16,185,129,0.2) !important; }
+        /* 進度條底色 */
+        #view-project-detail .bg-slate-100 { background: #e9eef5 !important; }
+        /* input 欄位 */
+        #view-project-detail input[type="text"],
+        #view-project-detail input[type="number"],
+        #view-project-detail select,
+        #view-project-detail textarea {
+            background: #ffffff !important;
+            border-color: #cbd5e1 !important;
+            color: #1e293b !important;
+        }
+        #view-project-detail input:focus,
+        #view-project-detail select:focus,
+        #view-project-detail textarea:focus {
+            background: #ffffff !important;
+            border-color: #3b82f6 !important;
+            box-shadow: 0 0 0 3px rgba(59,130,246,0.15) !important;
+        }
+        /* 返回按鈕 */
+        #view-project-detail button[onclick="backToMain()"] {
+            background: transparent !important;
+            border: 1px solid #cbd5e1 !important;
+            color: #475569 !important;
+        }
+        #view-project-detail button[onclick="backToMain()"]:hover {
+            background: #e2e8f0 !important;
+            color: #1e293b !important;
+        }
+        /* 儲存按鈕在淺色頁 */
+        #view-project-detail #btn-save-detail {
+            background: #2563eb !important;
+            border-color: #1d4ed8 !important;
+            color: #ffffff !important;
+        }
+        #view-project-detail #btn-save-detail:hover {
+            background: #1d4ed8 !important;
+            box-shadow: 0 4px 12px rgba(37,99,235,0.3) !important;
+        }
+        /* badge / tag */
+        #view-project-detail .bg-indigo-50  { background: #eef2ff !important; }
+        #view-project-detail .bg-indigo-100 { background: #e0e7ff !important; }
+        /* sticky header in detail table */
+        #view-project-detail .sticky-header th {
+            background: #f1f5f9 !important;
+            color: #475569 !important;
+            box-shadow: inset 0 -2px 0 #e2e8f0 !important;
+        }
 
         /* 詳情頁 progress box */
         .bg-blue-50\/50   { background: rgba(29,111,164,0.08) !important; border-color: rgba(29,111,164,0.2) !important; }
@@ -217,15 +310,28 @@
             box-shadow: 0 0 24px rgba(29,111,164,0.25) !important;
         }
 
-        /* Modal */
+        /* Modal — 淺色底 */
         #template-modal .bg-white,
         #append-template-modal .bg-white {
-            background: var(--c-surface) !important;
-            border: 1px solid var(--c-border);
+            background: #ffffff !important;
+            border: 1px solid #e2e8f0 !important;
+            color: #1e293b !important;
         }
+        #template-modal input,
+        #template-modal select,
+        #append-template-modal input,
+        #append-template-modal select {
+            background: #f8fafc !important;
+            border-color: #cbd5e1 !important;
+            color: #1e293b !important;
+        }
+        #template-modal .text-slate-700,
+        #append-template-modal .text-slate-700 { color: #334155 !important; }
+        #template-modal .text-slate-500,
+        #append-template-modal .text-slate-500 { color: #64748b !important; }
         .bg-gradient-to-r.from-indigo-500.to-purple-600 {
-            background: linear-gradient(90deg, #0a3d6b, #1d6fa4) !important;
-            border-bottom: 1px solid var(--c-accent);
+            background: linear-gradient(90deg, #4f46e5, #7c3aed) !important;
+            border-bottom: none;
         }
 
         /* 全域載入動畫 */

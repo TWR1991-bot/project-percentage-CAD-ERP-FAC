@@ -662,10 +662,17 @@
                     let hasProd = medium.hasProduction !== false;
                     let hasShip = medium.hasShipping !== false;
 
-                    let equipDraw = 0, equipProd = 0, equipShip = 0;
+                    // ★ 修正：無論設備是否為空，weight 都要納入分母
+                    //   空設備 = 進度 0%，但佔比仍要計算
+                    drawW += weight;
+                    if (hasProd) prodW += weight;
+                    if (hasShip) shipW += weight;
+
                     let equipCount = medium.equipments.length;
 
                     if (equipCount > 0) {
+                        let equipDraw = 0, equipProd = 0, equipShip = 0;
+
                         medium.equipments.forEach(eq => {
                             let detDraw = 0, detProd = 0, detShip = 0;
                             let detCount = eq.details.length;
@@ -690,17 +697,10 @@
                         });
                         
                         drawWeighted += (equipDraw / equipCount) * weight;
-                        drawW += weight;
-                        
-                        if (hasProd) {
-                            prodWeighted += (equipProd / equipCount) * weight;
-                            prodW += weight;
-                        }
-                        if (hasShip) {
-                            shipWeighted += (equipShip / equipCount) * weight;
-                            shipW += weight;
-                        }
+                        if (hasProd) prodWeighted += (equipProd / equipCount) * weight;
+                        if (hasShip) shipWeighted += (equipShip / equipCount) * weight;
                     }
+                    // 空設備：進度貢獻為 0，分母已加，numerator 不加 → 正確壓低整體進度
                 });
             });
 
@@ -1603,6 +1603,13 @@
                     let medHasProd = medium.hasProduction !== false;
                     let medHasShip = medium.hasShipping !== false;
 
+                    // ★ 修正：設備為空時仍渲染一列（顯示「尚無設備」）
+                    if (medium.equipments.length === 0) {
+                        html += renderTableRow(firstMaj, majRs, major.name, firstMed, medRs, medium.name, medium.weight, majIdx, medIdx, true, 1, '—', -1, null, null, null, phase, isEdit, medHasProd, medHasShip, true);
+                        firstMaj = false; firstMed = false;
+                        return; // continue to next medium
+                    }
+
                     medium.equipments.forEach((equip, eqIdx) => {
                         let eqRs = getEquipRowspan(equip);
                         let firstEq = true;
@@ -1631,7 +1638,7 @@
             renderPhaseTable(state.activePhaseTab); 
         }
 
-        function renderTableRow(firstMaj, majRs, majName, firstMed, medRs, medName, medWeight, majIdx, medIdx, firstEq, eqRs, eqName, eqIdx, det, detIdx, pId, phase, isEdit, medHasProd, medHasShip) {
+        function renderTableRow(firstMaj, majRs, majName, firstMed, medRs, medName, medWeight, majIdx, medIdx, firstEq, eqRs, eqName, eqIdx, det, detIdx, pId, phase, isEdit, medHasProd, medHasShip, emptyMedium = false) {
             let rowHtml = `<tr class="hover:bg-slate-50/80 transition-colors">`;
             
             if (firstMaj) {
@@ -1670,6 +1677,21 @@
                                 </div>` : ''}
                             </td>`;
             }
+
+            // ★ 空設備 medium：直接顯示提示，不渲染設備欄
+            if (emptyMedium) {
+                let colSpan = 2; // 設備 + 細項圖面
+                let phaseCols = (phase==='drawing') ? 6 : (phase==='production' ? 6 : 4);
+                rowHtml += `<td colspan="${colSpan + phaseCols + 1}" class="px-4 py-4 text-center">
+                    <span class="text-xs italic px-3 py-1 rounded-full" style="color: var(--c-text3); background: var(--c-surface2);">
+                        <i class="fa-solid fa-box-open mr-1"></i>尚無設備，進度佔 ${medWeight}% 計為 0%
+                    </span>
+                    ${isEdit ? `<button onclick="addProjectNode('equip', ${majIdx}, ${medIdx})" class="ml-3 text-xs px-2 py-1 rounded" style="color: var(--c-cyan); border: 1px solid var(--c-accent);"><i class="fa-solid fa-plus mr-1"></i>新增設備</button>` : ''}
+                </td>`;
+                rowHtml += `</tr>`;
+                return rowHtml;
+            }
+
             if (firstEq) {
                 rowHtml += `<td rowspan="${eqRs}" class="border-r border-slate-100 px-4 py-3 bg-white align-top">
                                 <div class="text-slate-600 font-bold">${eqName}</div>

@@ -310,25 +310,144 @@
             box-shadow: 0 0 24px rgba(29,111,164,0.25) !important;
         }
 
-        /* Modal — 淺色底 */
-        #template-modal .bg-white,
-        #append-template-modal .bg-white {
-            background: #ffffff !important;
-            border: 1px solid #e2e8f0 !important;
+        /* Modal — 模板工廠完整淺色主題（修正暗底暗字） */
+        #template-modal-content,
+        #append-template-content {
             color: #1e293b !important;
         }
-        #template-modal input,
-        #template-modal select,
-        #append-template-modal input,
-        #append-template-modal select {
+        #template-modal-content .bg-white,
+        #append-template-content .bg-white {
+            background: #ffffff !important;
+            border-color: #e2e8f0 !important;
+            color: #1e293b !important;
+        }
+        #template-modal-content .bg-slate-50,
+        #template-modal-content .bg-slate-50\/50,
+        #append-template-content .bg-slate-50,
+        #append-template-content .bg-slate-50\/50 {
             background: #f8fafc !important;
+        }
+        #template-modal-content .bg-slate-100,
+        #append-template-content .bg-slate-100 {
+            background: #f1f5f9 !important;
+        }
+        #template-modal-content .text-slate-800,
+        #template-modal-content .text-slate-700,
+        #template-modal-content .text-slate-600,
+        #append-template-content .text-slate-800,
+        #append-template-content .text-slate-700,
+        #append-template-content .text-slate-600 {
+            color: #334155 !important;
+        }
+        #template-modal-content .text-slate-500,
+        #template-modal-content .text-slate-400,
+        #append-template-content .text-slate-500,
+        #append-template-content .text-slate-400 {
+            color: #64748b !important;
+        }
+        #template-modal-content .text-slate-300,
+        #append-template-content .text-slate-300 {
+            color: #94a3b8 !important;
+        }
+        #template-modal-content label,
+        #append-template-content label {
+            color: #64748b !important;
+        }
+        #template-modal-content .text-indigo-700,
+        #append-template-content .text-indigo-700 {
+            color: #4338ca !important;
+        }
+        #template-modal-content .text-indigo-600,
+        #append-template-content .text-indigo-600 {
+            color: #4f46e5 !important;
+        }
+        #template-modal-content .text-indigo-500,
+        #template-modal-content .text-indigo-400,
+        #append-template-content .text-indigo-500,
+        #append-template-content .text-indigo-400 {
+            color: #6366f1 !important;
+        }
+        #template-modal-content .text-indigo-300,
+        #append-template-content .text-indigo-300 {
+            color: #a5b4fc !important;
+        }
+        #template-modal-content .text-indigo-300:hover,
+        #append-template-content .text-indigo-300:hover {
+            color: #4f46e5 !important;
+        }
+        #template-modal-content .bg-indigo-50,
+        #append-template-content .bg-indigo-50 {
+            background: #eef2ff !important;
+        }
+        #template-modal-content .bg-indigo-100,
+        #append-template-content .bg-indigo-100,
+        #template-modal-content .hover\:bg-indigo-100:hover,
+        #append-template-content .hover\:bg-indigo-100:hover {
+            background: #e0e7ff !important;
+        }
+        #template-modal-content .bg-blue-50,
+        #append-template-content .bg-blue-50 {
+            background: #eff6ff !important;
+        }
+        #template-modal-content .text-blue-600,
+        #append-template-content .text-blue-600 {
+            color: #2563eb !important;
+        }
+        #template-modal-content .border-slate-100,
+        #template-modal-content .border-slate-200,
+        #append-template-content .border-slate-100,
+        #append-template-content .border-slate-200 {
+            border-color: #e2e8f0 !important;
+        }
+        #template-modal-content .bg-slate-200,
+        #append-template-content .bg-slate-200 {
+            background-color: #e2e8f0 !important;
+        }
+        #template-modal-content .tree-line::before,
+        #append-template-content .tree-line::before {
+            background-color: #cbd5e1 !important;
+        }
+        #template-modal-content input,
+        #template-modal-content select,
+        #append-template-content input,
+        #append-template-content select {
+            background: #ffffff !important;
             border-color: #cbd5e1 !important;
             color: #1e293b !important;
         }
-        #template-modal .text-slate-700,
-        #append-template-modal .text-slate-700 { color: #334155 !important; }
-        #template-modal .text-slate-500,
-        #append-template-modal .text-slate-500 { color: #64748b !important; }
+        #template-modal-content input:focus,
+        #template-modal-content select:focus,
+        #append-template-content input:focus,
+        #append-template-content select:focus {
+            background: #ffffff !important;
+            border-color: #818cf8 !important;
+            box-shadow: 0 0 0 2px rgba(99,102,241,0.2) !important;
+        }
+        #template-modal-content button.bg-white,
+        #append-template-content button.bg-white {
+            background: #ffffff !important;
+            color: #475569 !important;
+        }
+        #template-modal-content button.bg-white:hover,
+        #append-template-content button.bg-white:hover,
+        #template-modal-content .hover\:bg-slate-100:hover,
+        #append-template-content .hover\:bg-slate-100:hover {
+            background: #f1f5f9 !important;
+        }
+        #template-modal-content .hover\:bg-rose-50:hover,
+        #append-template-content .hover\:bg-rose-50:hover {
+            background: #fff1f2 !important;
+        }
+        #template-modal-content .hover\:text-rose-500:hover,
+        #append-template-content .hover\:text-rose-500:hover {
+            color: #f43f5e !important;
+        }
+        #template-modal-content .hover\:text-indigo-500:hover,
+        #append-template-content .hover\:text-indigo-500:hover,
+        #template-modal-content .hover\:text-indigo-600:hover,
+        #append-template-content .hover\:text-indigo-600:hover {
+            color: #4f46e5 !important;
+        }
         .bg-gradient-to-r.from-indigo-500.to-purple-600 {
             background: linear-gradient(90deg, #4f46e5, #7c3aed) !important;
             border-bottom: none;

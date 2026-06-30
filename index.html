@@ -293,6 +293,85 @@
             box-shadow: inset 0 -2px 0 #e2e8f0 !important;
         }
 
+        /* 進行中專案詳情表 — 細項圖面加寬、大類直式、進度欄 */
+        #data-table th.col-detail,
+        #data-table td.col-detail {
+            min-width: 280px;
+            width: 320px;
+            max-width: 420px;
+        }
+        #data-table th.col-major,
+        #data-table td.col-major {
+            min-width: 3.5rem;
+            width: 4rem;
+            max-width: 4.5rem;
+            padding-left: 4px !important;
+            padding-right: 4px !important;
+            text-align: center;
+            vertical-align: middle;
+        }
+        #data-table th.col-major {
+            writing-mode: vertical-rl;
+            text-orientation: mixed;
+            letter-spacing: 0.08em;
+            white-space: nowrap;
+        }
+        #data-table .major-vertical {
+            writing-mode: vertical-rl;
+            text-orientation: mixed;
+            letter-spacing: 0.08em;
+            font-weight: 900;
+            margin: 0 auto;
+            display: inline-block;
+            line-height: 1.3;
+            color: #334155;
+        }
+        #data-table td.col-major .major-actions {
+            writing-mode: horizontal-tb;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            margin-top: 8px;
+        }
+        #data-table th.col-progress,
+        #data-table td.col-progress {
+            min-width: 72px;
+            width: 80px;
+            max-width: 88px;
+            padding-left: 4px !important;
+            padding-right: 4px !important;
+        }
+        #data-table th.col-progress {
+            white-space: normal;
+            word-break: break-all;
+            line-height: 1.35;
+            vertical-align: middle;
+        }
+        #data-table td.col-progress input[type="checkbox"] {
+            width: 1.25rem;
+            height: 1.25rem;
+        }
+        #data-table th.col-progress-input,
+        #data-table td.col-progress-input {
+            min-width: 80px;
+            width: 88px;
+            max-width: 96px;
+            padding-left: 4px !important;
+            padding-right: 4px !important;
+        }
+        #data-table th.col-progress-input {
+            white-space: normal;
+            line-height: 1.35;
+            vertical-align: middle;
+        }
+        #data-table td.col-progress-input input {
+            width: 3.25rem;
+            padding-left: 0.35rem;
+            padding-right: 0.35rem;
+            font-size: 0.875rem;
+        }
+
         /* 詳情頁 progress box */
         .bg-blue-50\/50   { background: rgba(29,111,164,0.08) !important; border-color: rgba(29,111,164,0.2) !important; }
         .bg-orange-50\/50 { background: rgba(224,123,57,0.08) !important; border-color: rgba(224,123,57,0.2) !important; }
@@ -1668,15 +1747,18 @@
             let checklist = CHECKLIST_TEMPLATES[phase];
             let colorClass = phase === 'drawing' ? 'blue' : (phase === 'production' ? 'orange' : 'emerald');
 
+            const progressTh = (label, extraClass = 'col-progress') =>
+                `<th class="border-b-2 border-slate-200 px-3 py-4 text-center text-${colorClass}-700 font-bold bg-${colorClass}-50 ${extraClass} leading-snug whitespace-normal">${label}</th>`;
+
             if (phase === 'drawing') {
-                checklist.forEach(col => columnsHTML += `<th class="border-b-2 border-slate-200 px-3 py-4 text-center text-${colorClass}-700 font-bold bg-${colorClass}-50 min-w-[80px]">${col}</th>`);
+                checklist.forEach(col => columnsHTML += progressTh(col));
             } else if (phase === 'production') {
-                checklist.forEach(col => columnsHTML += `<th class="border-b-2 border-slate-200 px-3 py-4 text-center text-${colorClass}-700 font-bold bg-${colorClass}-50 min-w-[80px]">${col}</th>`);
-                columnsHTML += `<th class="border-b-2 border-slate-200 px-3 py-4 text-center text-${colorClass}-700 font-bold bg-${colorClass}-50 min-w-[100px]">取料預估工</th>`;
-                columnsHTML += `<th class="border-b-2 border-slate-200 px-3 py-4 text-center text-${colorClass}-700 font-bold bg-${colorClass}-50 min-w-[100px]">製作預估工</th>`;
+                checklist.forEach(col => columnsHTML += progressTh(col));
+                columnsHTML += progressTh('取料預估工', 'col-progress-input');
+                columnsHTML += progressTh('製作預估工', 'col-progress-input');
             } else if (phase === 'shipping') {
-                checklist.forEach(col => columnsHTML += `<th class="border-b-2 border-slate-200 px-3 py-4 text-center text-${colorClass}-700 font-bold bg-${colorClass}-50 min-w-[100px]">${col}</th>`);
-                columnsHTML += `<th class="border-b-2 border-slate-200 px-3 py-4 text-center text-${colorClass}-700 font-bold bg-${colorClass}-50 min-w-[80px]">操作</th>`;
+                checklist.forEach(col => columnsHTML += progressTh(col));
+                columnsHTML += progressTh('操作');
             }
 
             let html = '';
@@ -1695,7 +1777,7 @@
             <table class="w-full text-sm border-collapse" id="data-table">
                 <thead class="sticky-header">
                     <tr>
-                        <th class="border-b-2 border-slate-200 px-4 py-4 text-left w-32 bg-slate-50 font-bold text-slate-600">大類</th>
+                        <th class="border-b-2 border-slate-200 px-1 py-4 text-center col-major bg-slate-50 font-bold text-slate-600">大類</th>
                         <th class="border-b-2 border-slate-200 px-4 py-4 text-left w-40 bg-slate-50 font-bold text-slate-600">中類 (權重%)</th>
                         <th class="border-b-2 border-slate-200 px-4 py-4 text-left w-40 bg-slate-50 font-bold text-slate-600">設備</th>
                         
@@ -1703,7 +1785,7 @@
                         <th class="border-b-2 border-slate-200 px-3 py-4 text-left w-24 bg-slate-50 font-bold text-slate-600 text-xs">本體編號</th>
                         <th class="border-b-2 border-slate-200 px-3 py-4 text-center w-20 bg-slate-50 font-bold text-slate-600 text-xs">版本</th>
                         
-                        <th class="border-b-2 border-slate-200 px-4 py-4 text-left w-56 bg-slate-50 font-bold text-slate-600">細項圖面</th>
+                        <th class="border-b-2 border-slate-200 px-4 py-4 text-left col-detail bg-slate-50 font-bold text-slate-600">細項圖面</th>
                         <th class="border-b-2 border-slate-200 px-3 py-4 text-center w-16 bg-slate-50 font-bold text-slate-600 text-xs">數量</th>
                         
                         ${columnsHTML}
@@ -1761,10 +1843,10 @@
             let rowHtml = `<tr class="hover:bg-slate-50/80 transition-colors">`;
             
             if (firstMaj) {
-                rowHtml += `<td rowspan="${majRs}" class="border-r border-slate-100 px-4 py-3 align-top bg-white/50">
-                                <div class="font-black text-slate-700">${majName}</div>
+                rowHtml += `<td rowspan="${majRs}" class="border-r border-slate-100 px-1 py-3 align-middle text-center bg-white/50 col-major">
+                                <div class="major-vertical">${majName}</div>
                                 ${isEdit ? `
-                                <div class="flex gap-2 mt-2">
+                                <div class="major-actions">
                                     <button onclick="editProjectNode('major', ${majIdx})" title="編輯大類名稱" class="text-slate-400 hover:text-indigo-500 transition-colors"><i class="fa-solid fa-pen text-xs"></i></button>
                                     <button onclick="deleteProjectNode('major', ${majIdx})" title="刪除大類" class="text-slate-400 hover:text-rose-500 transition-colors"><i class="fa-solid fa-trash text-xs"></i></button>
                                 </div>` : ''}
@@ -1845,7 +1927,7 @@
                     </td>
                 `;
 
-                rowHtml += `<td class="border-r border-slate-100 px-4 py-3 text-slate-700 font-bold group">
+                rowHtml += `<td class="border-r border-slate-100 px-4 py-3 text-slate-700 font-bold group col-detail">
                                 <div class="flex items-center gap-2 w-full">
                                     <input type="text" value="${det.name}" ${!isEdit ? 'disabled' : ''} onchange="updateDetailField('${pId}', 'name', this.value)" class="flex-1 min-w-0 bg-transparent border-b border-transparent focus:border-indigo-300 focus:outline-none">
                                     ${isEdit ? `<button onclick="deleteProjectNode('detail', ${majIdx}, ${medIdx}, ${eqIdx}, ${detIdx})" class="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-rose-500 transition-opacity shrink-0" title="刪除細項"><i class="fa-solid fa-xmark text-sm"></i></button>` : ''}
@@ -1863,7 +1945,7 @@
                 if (phase === 'drawing') {
                     for(let i=0; i<6; i++) {
                         let checked = det.drawing[i] ? 'checked' : '';
-                        rowHtml += `<td class="border-l border-slate-50 p-2 text-center align-middle bg-${colorBase}-50/10 hover:bg-${colorBase}-50/40 transition-colors">
+                        rowHtml += `<td class="border-l border-slate-50 p-2 text-center align-middle col-progress bg-${colorBase}-50/10 hover:bg-${colorBase}-50/40 transition-colors">
                                         <div class="flex justify-center">
                                             <input type="checkbox" ${checked} ${!isEdit ? 'disabled' : ''} onchange="toggleCheck('${pId}', 'draw', ${i}, this.checked)" class="w-5 h-5 text-${colorBase}-500 rounded border-slate-300 focus:ring-${colorBase}-500 cursor-pointer shadow-sm">
                                         </div>
@@ -1875,17 +1957,17 @@
                     } else {
                         for(let i=0; i<4; i++) {
                             let checked = det.production.checks[i] ? 'checked' : '';
-                            rowHtml += `<td class="border-l border-slate-50 p-2 text-center align-middle bg-${colorBase}-50/10 hover:bg-${colorBase}-50/40 transition-colors">
+                            rowHtml += `<td class="border-l border-slate-50 p-2 text-center align-middle col-progress bg-${colorBase}-50/10 hover:bg-${colorBase}-50/40 transition-colors">
                                             <div class="flex justify-center">
                                                 <input type="checkbox" ${checked} ${!isEdit ? 'disabled' : ''} onchange="toggleCheck('${pId}', 'prod', ${i}, this.checked)" class="w-5 h-5 text-${colorBase}-500 rounded border-slate-300 focus:ring-${colorBase}-500 cursor-pointer shadow-sm">
                                             </div>
                                         </td>`;
                         }
-                        rowHtml += `<td class="border-l border-slate-50 p-2 text-center bg-${colorBase}-50/10">
-                                        <input type="text" value="${det.production.inputs.material}" ${!isEdit ? 'disabled' : ''} onchange="updateInput('${pId}', 'material', this.value)" class="w-16 text-center border border-slate-200 rounded-lg px-2 py-1 text-sm bg-white focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400 shadow-sm placeholder:text-slate-200" placeholder="-">
+                        rowHtml += `<td class="border-l border-slate-50 p-2 text-center col-progress-input bg-${colorBase}-50/10">
+                                        <input type="text" value="${det.production.inputs.material}" ${!isEdit ? 'disabled' : ''} onchange="updateInput('${pId}', 'material', this.value)" class="mx-auto text-center border border-slate-200 rounded-lg px-2 py-1 text-sm bg-white focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400 shadow-sm placeholder:text-slate-200" placeholder="-">
                                     </td>`;
-                        rowHtml += `<td class="border-l border-slate-50 p-2 text-center bg-${colorBase}-50/10">
-                                        <input type="text" value="${det.production.inputs.work}" ${!isEdit ? 'disabled' : ''} onchange="updateInput('${pId}', 'work', this.value)" class="w-16 text-center border border-slate-200 rounded-lg px-2 py-1 text-sm bg-white focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400 shadow-sm placeholder:text-slate-200" placeholder="-">
+                        rowHtml += `<td class="border-l border-slate-50 p-2 text-center col-progress-input bg-${colorBase}-50/10">
+                                        <input type="text" value="${det.production.inputs.work}" ${!isEdit ? 'disabled' : ''} onchange="updateInput('${pId}', 'work', this.value)" class="mx-auto text-center border border-slate-200 rounded-lg px-2 py-1 text-sm bg-white focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400 shadow-sm placeholder:text-slate-200" placeholder="-">
                                     </td>`;
                     }
                 } else if (phase === 'shipping') {
@@ -1894,14 +1976,14 @@
                     } else {
                         for(let i=0; i<3; i++) {
                             let checked = det.shipping[i] ? 'checked' : '';
-                            rowHtml += `<td class="border-l border-slate-50 p-2 text-center align-middle bg-${colorBase}-50/10 hover:bg-${colorBase}-50/40 transition-colors">
+                            rowHtml += `<td class="border-l border-slate-50 p-2 text-center align-middle col-progress bg-${colorBase}-50/10 hover:bg-${colorBase}-50/40 transition-colors">
                                             <div class="flex justify-center">
                                                 <input type="checkbox" ${checked} ${!isEdit ? 'disabled' : ''} onchange="toggleCheck('${pId}', 'ship', ${i}, this.checked)" class="w-5 h-5 text-${colorBase}-500 rounded border-slate-300 focus:ring-${colorBase}-500 cursor-pointer shadow-sm">
                                             </div>
                                         </td>`;
                         }
-                        rowHtml += `<td class="border-l border-slate-50 p-2 text-center align-middle bg-${colorBase}-50/10">
-                                        ${isEdit ? `<button onclick="selectAllShipping('${pId}')" class="text-xs bg-emerald-100 hover:bg-emerald-200 text-emerald-700 px-3 py-1.5 rounded-lg font-bold transition-colors shadow-sm active:scale-95"><i class="fa-solid fa-check-double mr-1"></i>全選</button>` : '-'}
+                        rowHtml += `<td class="border-l border-slate-50 p-2 text-center align-middle col-progress bg-${colorBase}-50/10">
+                                        ${isEdit ? `<button onclick="selectAllShipping('${pId}')" class="text-xs bg-emerald-100 hover:bg-emerald-200 text-emerald-700 px-2 py-1.5 rounded-lg font-bold transition-colors shadow-sm active:scale-95 whitespace-nowrap"><i class="fa-solid fa-check-double mr-1"></i>全選</button>` : '-'}
                                     </td>`;
                     }
                 }

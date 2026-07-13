@@ -617,9 +617,27 @@
             overflow: visible !important;
             position: relative !important;
         }
+        .exporting-pdf #detail-body-wrapper {
+            overflow: visible !important;
+            height: auto !important;
+        }
         .exporting-pdf #table-container {
             overflow: visible !important;
             max-height: none !important;
+            height: auto !important;
+        }
+        /* 匯出時連外層 body/main 也一併解除高度鎖定與裁切,
+           避免超過一個畫面高度的內容在轉圖時被截斷 */
+        body.pdf-exporting-active {
+            height: auto !important;
+            overflow: visible !important;
+        }
+        body.pdf-exporting-active main {
+            overflow: visible !important;
+            height: auto !important;
+        }
+        body.pdf-exporting-active nav {
+            display: none !important;
         }
 
         /* 科技感掃描線裝飾（僅主背景，subtle） */
@@ -708,7 +726,7 @@
                 </div>
             </header>
 
-            <div class="flex-1 flex flex-col overflow-hidden min-h-0">
+            <div class="flex-1 flex flex-col overflow-hidden min-h-0" id="detail-body-wrapper">
                 <div class="bg-white border-b border-slate-100 shrink-0 px-8 py-6">
                     <div class="flex gap-8 items-center justify-between">
                         <div class="flex gap-4">
@@ -2369,6 +2387,7 @@
             
             const detailView = document.getElementById('view-project-detail');
             detailView.classList.add('exporting-pdf');
+            document.body.classList.add('pdf-exporting-active');
             
             setTimeout(() => {
                 const opt = {
@@ -2387,6 +2406,7 @@
                 html2pdf().set(opt).from(detailView).save().then(() => {
                     btn.innerHTML = originalText;
                     detailView.classList.remove('exporting-pdf');
+                    document.body.classList.remove('pdf-exporting-active');
                 });
             }, 300);
         }

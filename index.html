@@ -104,6 +104,17 @@
         }
         .bg-slate-50 { background: var(--c-surface2) !important; }
 
+        /* A/B/C/D 案區塊底色區分（讓四個區塊一眼就能分辨，不再長得一樣） */
+        .bg-white.area-panel-a { background: #26304d !important; }
+        .bg-white.area-panel-b { background: #1f3a38 !important; }
+        .bg-white.area-panel-c { background: #3a3120 !important; }
+        .bg-white.area-panel-d { background: #3a232f !important; }
+
+        .bg-slate-50.area-header-a { background: #2d3559 !important; }
+        .bg-slate-50.area-header-b { background: #244543 !important; }
+        .bg-slate-50.area-header-c { background: #493c24 !important; }
+        .bg-slate-50.area-header-d { background: #452a37 !important; }
+
         /* 文字色覆蓋 */
         .text-slate-800, .text-slate-700 { color: var(--c-text) !important; }
         .text-slate-600 { color: var(--c-text) !important; }
@@ -841,10 +852,10 @@
         
         // 四大區域專屬主題配色定義
         const AREA_THEMES = {
-            'A案': { dot: 'bg-indigo-400', badgeBg: 'bg-indigo-100', badgeText: 'text-indigo-700', tagBg: 'bg-indigo-50', tagText: 'text-indigo-500' },
-            'B案': { dot: 'bg-emerald-400', badgeBg: 'bg-emerald-100', badgeText: 'text-emerald-700', tagBg: 'bg-emerald-50', tagText: 'text-emerald-500' },
-            'C案': { dot: 'bg-amber-400', badgeBg: 'bg-amber-100', badgeText: 'text-amber-700', tagBg: 'bg-amber-50', tagText: 'text-amber-600' },
-            'D案': { dot: 'bg-rose-400', badgeBg: 'bg-rose-100', badgeText: 'text-rose-700', tagBg: 'bg-rose-50', tagText: 'text-rose-500' }
+            'A案': { key: 'a', dot: 'bg-indigo-400', badgeBg: 'bg-indigo-100', badgeText: 'text-indigo-700', tagBg: 'bg-indigo-50', tagText: 'text-indigo-500' },
+            'B案': { key: 'b', dot: 'bg-emerald-400', badgeBg: 'bg-emerald-100', badgeText: 'text-emerald-700', tagBg: 'bg-emerald-50', tagText: 'text-emerald-500' },
+            'C案': { key: 'c', dot: 'bg-amber-400', badgeBg: 'bg-amber-100', badgeText: 'text-amber-700', tagBg: 'bg-amber-50', tagText: 'text-amber-600' },
+            'D案': { key: 'd', dot: 'bg-rose-400', badgeBg: 'bg-rose-100', badgeText: 'text-rose-700', tagBg: 'bg-rose-50', tagText: 'text-rose-500' }
         };
 
         // Google Apps Script API 網址
@@ -980,12 +991,12 @@
                 let theme = AREA_THEMES[area] || AREA_THEMES['A案']; // 動態提取該廠區顏色
                 
                 html += `
-                <div class="bg-white rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 overflow-hidden flex flex-col">
-                    <div class="bg-slate-50 px-8 py-5 flex justify-between items-center border-b border-slate-100">
+                <div class="bg-white area-panel-${theme.key} rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 overflow-hidden flex flex-col">
+                    <div class="bg-slate-50 area-header-${theme.key} px-8 py-5 flex justify-between items-center border-b border-slate-100">
                         <span class="font-bold text-lg text-slate-700 flex items-center gap-2"><div class="w-2 h-6 ${theme.dot} rounded-full"></div> ${area}</span>
                         <span class="${theme.badgeBg} ${theme.badgeText} text-sm font-bold px-3 py-1 rounded-full">${areaProjects.length} 個專案</span>
                     </div>
-                    <div class="p-6 bg-white grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6">
+                    <div class="p-6 bg-transparent grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6">
                 `;
 
                 if (areaProjects.length === 0) {
@@ -1074,12 +1085,12 @@
                 let theme = AREA_THEMES[area] || AREA_THEMES['A案'];
 
                 html += `
-                <div class="bg-white rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 overflow-hidden flex flex-col opacity-90">
-                    <div class="bg-slate-50 px-8 py-4 flex justify-between items-center border-b border-slate-100">
+                <div class="bg-white area-panel-${theme.key} rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 overflow-hidden flex flex-col opacity-90">
+                    <div class="bg-slate-50 area-header-${theme.key} px-8 py-4 flex justify-between items-center border-b border-slate-100">
                         <span class="font-bold text-lg text-slate-500 flex items-center gap-2"><div class="w-2 h-6 ${theme.dot} rounded-full"></div> ${area}</span>
                         <span class="${theme.badgeBg} ${theme.badgeText} text-sm font-bold px-3 py-1 rounded-full">${areaProjects.length} 個歸檔</span>
                     </div>
-                    <div class="p-6 bg-white grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6">
+                    <div class="p-6 bg-transparent grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6">
                 `;
 
                 if (areaProjects.length === 0) {
@@ -2290,7 +2301,7 @@
                     if(res.status === 'success') {
                         state.hasUnsavedChanges = false; 
                         alert('專案進度已成功同步至 Google Sheets！');
-                        backToMain();
+                        updateDetailProgress();
                     } else {
                         alert('儲存失敗：' + res.message);
                     }

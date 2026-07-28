@@ -1381,18 +1381,19 @@
             try {
                 const response = await fetch(`${API_URL}?action=saveProject`, {
                     method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
                     body: JSON.stringify(newProject)
                 });
-                const res = await response.json();
-                if(res.status === 'success') {
+                const res = await safeParseJSON(response);
+                if(res && res.status === 'success') {
                     state.projects.push(newProject);
                     alert(`成功！專案 [${idVal}] 已建立，並且自動套用了模板與寫入資料庫！`);
                     switchTab('dashboard');
                 } else {
-                    alert('資料庫寫入失敗：' + res.message);
+                    alert('資料庫寫入失敗：' + (res ? res.message : '伺服器回傳格式異常，請確認 GAS 部署是否正常。'));
                 }
             } catch (error) {
-                alert('網路連線異常，請稍後再試。');
+                alert('網路連線異常，請稍後再試。\n錯誤：' + error.message);
             } finally {
                 btn.innerHTML = origHtml;
                 btn.disabled = false;
@@ -1403,6 +1404,7 @@
             try {
                 await fetch(`${API_URL}?action=saveTemplates`, {
                     method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
                     body: JSON.stringify(state.templateMajors)
                 });
             } catch (error) {
@@ -1781,6 +1783,7 @@
 
             if (phase === 'drawing') {
                 checklist.forEach(col => columnsHTML += progressTh(col));
+                columnsHTML += `<th class="border-b-2 border-slate-200 px-2 py-4 text-center bg-blue-100 font-bold text-blue-700 w-16 leading-snug">全選</th>`;
             } else if (phase === 'production') {
                 checklist.forEach(col => columnsHTML += progressTh(col));
                 columnsHTML += progressTh('取料預估工', 'col-progress-input');
@@ -1810,12 +1813,12 @@
                         <th class="border-b-2 border-slate-200 px-4 py-4 text-left w-40 bg-slate-50 font-bold text-slate-600">中類 (權重%)</th>
                         <th class="border-b-2 border-slate-200 px-4 py-4 text-left w-40 bg-slate-50 font-bold text-slate-600">設備</th>
                         
-                        <th class="border-b-2 border-slate-200 px-3 py-4 text-left w-24 bg-slate-50 font-bold text-slate-600 text-xs">組裝編號</th>
-                        <th class="border-b-2 border-slate-200 px-3 py-4 text-left w-24 bg-slate-50 font-bold text-slate-600 text-xs">本體編號</th>
-                        <th class="border-b-2 border-slate-200 px-3 py-4 text-center w-20 bg-slate-50 font-bold text-slate-600 text-xs">版本</th>
+                        <th class="border-b-2 border-slate-200 px-3 py-4 text-left w-24 bg-slate-50 font-bold text-slate-600">組裝編號</th>
+                        <th class="border-b-2 border-slate-200 px-3 py-4 text-left w-24 bg-slate-50 font-bold text-slate-600">本體編號</th>
+                        <th class="border-b-2 border-slate-200 px-3 py-4 text-center w-20 bg-slate-50 font-bold text-slate-600">版本</th>
                         
                         <th class="border-b-2 border-slate-200 px-4 py-4 text-left col-detail bg-slate-50 font-bold text-slate-600">細項圖面</th>
-                        <th class="border-b-2 border-slate-200 px-3 py-4 text-center w-16 bg-slate-50 font-bold text-slate-600 text-xs">數量</th>
+                        <th class="border-b-2 border-slate-200 px-3 py-4 text-center w-16 bg-slate-50 font-bold text-slate-600">數量</th>
                         
                         ${columnsHTML}
                     </tr>
@@ -1980,6 +1983,16 @@
                                         </div>
                                     </td>`;
                     }
+                    // 全選按鈕
+                    const allChecked = det.drawing.every(Boolean);
+                    rowHtml += `<td class="border-l border-blue-100 p-2 text-center align-middle bg-blue-50/20">
+                        <button onclick="toggleAllDrawing('${pId}', ${!allChecked})" ${!isEdit ? 'disabled' : ''}
+                            class="text-xs font-bold px-2 py-1 rounded transition-all ${allChecked
+                                ? 'bg-blue-500 text-white hover:bg-blue-600'
+                                : 'bg-white text-blue-600 border border-blue-300 hover:bg-blue-50'} disabled:opacity-40 disabled:cursor-not-allowed">
+                            ${allChecked ? '✓ 已全選' : '全選'}
+                        </button>
+                    </td>`;
                 } else if (phase === 'production') {
                     if (!medHasProd) {
                         if (firstMed) rowHtml += `<td colspan="6" rowspan="${medRs}" class="border-l border-slate-50 p-4 text-center align-middle bg-slate-50 text-slate-400 font-bold italic text-base">此中類設定為「不需生產製造」</td>`;
@@ -2294,19 +2307,21 @@
                 try {
                     const response = await fetch(`${API_URL}?action=saveProject`, {
                         method: 'POST',
+                        headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
                         body: JSON.stringify(projectObj)
                     });
-                    const res = await response.json();
+                    const res = await safeParseJSON(response);
                     
-                    if(res.status === 'success') {
+                    if(res && res.status === 'success') {
                         state.hasUnsavedChanges = false; 
                         alert('專案進度已成功同步至 Google Sheets！');
                         updateDetailProgress();
                     } else {
-                        alert('儲存失敗：' + res.message);
+                        const msg = res ? res.message : '伺服器回傳格式異常';
+                        alert('儲存失敗：' + msg + '\n\n如持續發生，請至 Google Apps Script 重新部署（建立新版本）。');
                     }
                 } catch (error) {
-                    alert('網路連線異常，請稍後再試。');
+                    alert('網路連線異常，請稍後再試。\n錯誤：' + error.message);
                 } finally {
                     if (state.hasUnsavedChanges) {
                         saveBtn.innerHTML = origHtml;
@@ -2330,22 +2345,23 @@
                     try {
                         const response = await fetch(`${API_URL}?action=saveProject`, {
                             method: 'POST',
+                            headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
                             body: JSON.stringify(proj)
                         });
-                        const res = await response.json();
+                        const res = await safeParseJSON(response);
                         
-                        if(res.status === 'success') {
+                        if(res && res.status === 'success') {
                             state.closedProjects.push(proj);
                             state.projects.splice(index, 1);
                             renderDashboard();
                             alert('專案已順利結案並封存。');
                         } else {
                             proj.status = origStatus; 
-                            alert('結案失敗：' + res.message);
+                            alert('結案失敗：' + (res ? res.message : '伺服器回傳格式異常'));
                         }
                     } catch (error) {
                         proj.status = origStatus; 
-                        alert('網路連線異常，請稍後再試。');
+                        alert('網路連線異常，請稍後再試。\n錯誤：' + error.message);
                     }
                 }
             }
@@ -2383,10 +2399,14 @@
             if (!password || password.trim() === "") return false;
             try {
                 const response = await fetch(`${API_URL}?action=verifyPassword&password=${encodeURIComponent(password)}`);
-                const res = await response.json();
-                return res.status === 'success' && res.data.isValid === true;
+                const res = await safeParseJSON(response);
+                if (!res || res.status !== 'success') {
+                    alert('密碼驗證失敗：' + (res ? res.message : 'GAS 回傳異常，請確認部署是否正常。'));
+                    return false;
+                }
+                return res.data.isValid === true;
             } catch(e) {
-                console.error("Password verification error:", e);
+                alert('網路連線異常，無法驗證密碼：' + e.message);
                 return false;
             }
         }
@@ -2422,10 +2442,30 @@
             }, 300);
         }
 
+        // 圖面進度全選 / 取消全選
+        function toggleAllDrawing(pId, checkAll) {
+            const [majIdx, medIdx, eqIdx, detIdx] = pId.split('-').map(Number);
+            const det = state.tempEditData.majors[majIdx].mediums[medIdx].equipments[eqIdx].details[detIdx];
+            det.drawing = det.drawing.map(() => checkAll);
+            markUnsaved();
+            renderPhaseTable('drawing');
+        }
+
+        // ★ 共用：安全解析 GAS 回傳 JSON，避免 GAS 回傳 HTML 錯誤頁時 crash
+        async function safeParseJSON(response) {
+            const text = await response.text();
+            try {
+                return JSON.parse(text);
+            } catch (e) {
+                console.error('GAS 回傳非 JSON 內容：', text.substring(0, 300));
+                return { status: 'error', message: 'GAS 回傳格式異常，可能需要重新部署。詳見 F12 Console。' };
+            }
+        }
+
         async function fetchInitialData() {
             try {
                 const response = await fetch(`${API_URL}?action=getInitialData`);
-                const result = await response.json();
+                const result = await safeParseJSON(response);
                 
                 if(result.status === 'success') {
                     state.projects = result.data.projects || [];

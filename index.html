@@ -1102,9 +1102,14 @@
                             <span class="text-sm ${theme.tagBg} ${theme.tagText} px-2 py-1 rounded border border-slate-200 font-bold w-max">${p.id}</span>
                             <h4 class="font-black text-xl text-slate-600 mt-2 mb-3 tracking-tight truncate" title="${p.name}">${p.name}</h4>
                             <div class="text-sm text-slate-400 mb-4 font-medium"><i class="fa-regular fa-calendar-check mr-1"></i> 結案時間: ${p.closeDate}</div>
-                            <button onclick="openProjectDetail('${p.id}', false, 'closed')" class="w-full py-2.5 text-sm bg-slate-700 hover:bg-slate-800 text-white rounded-xl font-bold transition-all shadow-sm mt-auto">
-                                <i class="fa-solid fa-book-open mr-1"></i> 翻閱報表 (可匯出)
-                            </button>
+                            <div class="flex gap-2 mt-auto">
+                                <button onclick="openProjectDetail('${p.id}', false, 'closed')" class="flex-1 py-2.5 text-sm bg-slate-700 hover:bg-slate-800 text-white rounded-xl font-bold transition-all shadow-sm">
+                                    <i class="fa-solid fa-book-open mr-1"></i> 翻閱報表
+                                </button>
+                                <button onclick="openProjectDetail('${p.id}', true, 'closed')" class="py-2.5 px-3 text-sm bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-xl font-bold transition-all border border-indigo-100" title="進入編輯">
+                                    <i class="fa-solid fa-pen"></i>
+                                </button>
+                            </div>
                         </div>`;
                     });
                 }
@@ -1682,7 +1687,9 @@
             document.getElementById('view-main').classList.add('hidden');
             document.getElementById('view-project-detail').classList.remove('hidden');
 
-            document.getElementById('detail-project-id').innerText = project.id;
+            document.getElementById('detail-project-id').innerHTML = isEditMode
+                ? `${project.id} <button onclick="editProjectId()" title="修改工程案號" class="ml-1 text-indigo-300 hover:text-indigo-600 transition-colors align-middle"><i class="fa-solid fa-pen text-xs"></i></button>`
+                : project.id;
             
             document.getElementById('detail-project-name').innerHTML = `
                 ${project.name} ${sourceList === 'closed' ? ' <span class="text-slate-400 text-lg font-bold">(已歸檔)</span>' : ''}
@@ -1752,6 +1759,25 @@
                 `;
                 markUnsaved();
             }
+        }
+
+        function editProjectId() {
+            const oldId = state.tempEditData.id;
+            const newId = prompt("請輸入新的工程案號：", oldId);
+            if (!newId || !newId.trim()) return;
+            const trimmed = newId.trim().toUpperCase();
+            if (trimmed === oldId) return;
+            // 確認不與其他專案重複
+            const allIds = [...state.projects, ...state.closedProjects].map(p => p.id);
+            if (allIds.includes(trimmed)) {
+                alert(`工程案號「${trimmed}」已存在，請使用不同的編號。`);
+                return;
+            }
+            state.tempEditData.id = trimmed;
+            state.editingProjectId = trimmed;
+            document.getElementById('detail-project-id').innerHTML = 
+                `${trimmed} <button onclick="editProjectId()" title="修改工程案號" class="ml-1 text-indigo-300 hover:text-indigo-600 transition-colors align-middle"><i class="fa-solid fa-pen text-xs"></i></button>`;
+            markUnsaved();
         }
 
         function getEquipRowspan(equip) {
@@ -2294,10 +2320,26 @@
         }
 
         async function saveProjectData() {
-            const index = state.projects.findIndex(p => p.id === state.editingProjectId);
+            // 找來源：先找進行中，再找歷史典藏
+            let index = state.projects.findIndex(p => p.id === state.editingProjectId);
+            let isClosed = false;
+            if (index === -1) {
+                index = state.closedProjects.findIndex(p => p.id === state.editingProjectId);
+                isClosed = true;
+            }
             if(index !== -1) {
-                state.projects[index] = JSON.parse(JSON.stringify(state.tempEditData));
-                const projectObj = state.projects[index];
+                // 如果案號被修改，需要移除舊案號並用新案號寫入
+                const oldId = state.editingProjectId;
+                const newId = state.tempEditData.id;
+                if (isClosed) {
+                    state.closedProjects[index] = JSON.parse(JSON.stringify(state.tempEditData));
+                } else {
+                    state.projects[index] = JSON.parse(JSON.stringify(state.tempEditData));
+                }
+                // 案號若已更改，同步 editingProjectId
+                state.editingProjectId = newId;
+
+                const projectObj = isClosed ? state.closedProjects[index] : state.projects[index];
                 
                 const saveBtn = document.getElementById('btn-save-detail');
                 const origHtml = saveBtn.innerHTML;

@@ -1111,6 +1111,9 @@
                                 <button onclick="openProjectDetail('${p.id}', true, 'closed')" class="py-2.5 px-3 text-sm bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-xl font-bold transition-all border border-indigo-100" title="進入編輯">
                                     <i class="fa-solid fa-pen"></i>
                                 </button>
+                                <button onclick="restoreProject('${p.id}')" class="py-2.5 px-3 text-sm bg-emerald-50 hover:bg-emerald-100 text-emerald-600 rounded-xl font-bold transition-all border border-emerald-100" title="還原為進行中專案">
+                                    <i class="fa-solid fa-rotate-left"></i>
+                                </button>
                             </div>
                         </div>`;
                     });
@@ -1307,6 +1310,20 @@
 
         // --- 動態產生新專案邏輯 ---
         async function createNewProject() {
+            const pwd = prompt("請輸入管理員密碼以建立新工案：");
+            if (pwd === null) return;
+
+            try {
+                const isValid = await verifyPasswordFromBackend(pwd);
+                if (!isValid) {
+                    alert("密碼錯誤，無法建立新工案！");
+                    return;
+                }
+            } catch(e) {
+                alert('網路連線異常，請檢查。');
+                return;
+            }
+
             const idVal = document.getElementById('new-proj-id').value.trim().toUpperCase();
             const nameVal = document.getElementById('new-proj-name').value.trim();
             const areaVal = document.getElementById('new-proj-area').value;
@@ -2478,38 +2495,105 @@
         }
 
         async function closeProject(id) {
-            if(confirm(`確定要把專案 [${id}] 結案並封存至歷史典藏館嗎？`)) {
-                const index = state.projects.findIndex(p => p.id === id);
-                if(index > -1) {
-                    let proj = state.projects[index];
-                    const origStatus = proj.status;
-                    
-                    proj.status = 'closed';
-                    proj.closeDate = new Date().toISOString().split('T')[0];
-                    proj.progress = calculateProgress(proj);
-                    
-                    try {
-                        const response = await fetch(`${API_URL}?action=saveProject`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
-                            body: JSON.stringify(proj)
-                        });
-                        const res = await safeParseJSON(response);
-                        
-                        if(res && res.status === 'success') {
-                            state.closedProjects.push(proj);
-                            state.projects.splice(index, 1);
-                            renderDashboard();
-                            alert('專案已順利結案並封存。');
-                        } else {
-                            proj.status = origStatus; 
-                            alert('結案失敗：' + (res ? res.message : '伺服器回傳格式異常'));
-                        }
-                    } catch (error) {
-                        proj.status = origStatus; 
-                        alert('網路連線異常，請稍後再試。\n錯誤：' + error.message);
-                    }
+            if(!confirm(`確定要把專案 [${id}] 結案並封存至歷史典藏館嗎？`)) return;
+
+            const pwd = prompt("請輸入管理員密碼以確認結案歸檔：");
+            if (pwd === null) return;
+
+            try {
+                const isValid = await verifyPasswordFromBackend(pwd);
+                if (!isValid) {
+                    alert("密碼錯誤，結案失敗！");
+                    return;
                 }
+            } catch(e) {
+                alert('網路連線異常，請檢查。');
+                return;
+            }
+
+            const index = state.projects.findIndex(p => p.id === id);
+            if(index > -1) {
+                let proj = state.projects[index];
+                const origStatus = proj.status;
+                
+                proj.status = 'closed';
+                proj.closeDate = new Date().toISOString().split('T')[0];
+                proj.progress = calculateProgress(proj);
+                
+                try {
+                    const response = await fetch(`${API_URL}?action=saveProject`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
+                        body: JSON.stringify(proj)
+                    });
+                    const res = await safeParseJSON(response);
+                    
+                    if(res && res.status === 'success') {
+                        state.closedProjects.push(proj);
+                        state.projects.splice(index, 1);
+                        renderDashboard();
+                        alert('專案已順利結案並封存。');
+                    } else {
+                        proj.status = origStatus; 
+                        alert('結案失敗：' + (res ? res.message : '伺服器回傳格式異常'));
+                    }
+                } catch (error) {
+                    proj.status = origStatus; 
+                    alert('網路連線異常，請稍後再試。\n錯誤：' + error.message);
+                }
+            }
+        }
+
+        // ★ 將歷史典藏專案還原為「進行中專案」
+        async function restoreProject(id) {
+            if(!confirm(`確定要將專案 [${id}] 從歷史典藏還原為「進行中專案」嗎？`)) return;
+
+            const pwd = prompt("請輸入管理員密碼以確認還原：");
+            if (pwd === null) return;
+
+            try {
+                const isValid = await verifyPasswordFromBackend(pwd);
+                if (!isValid) {
+                    alert("密碼錯誤，還原失敗！");
+                    return;
+                }
+            } catch(e) {
+                alert('網路連線異常，請檢查。');
+                return;
+            }
+
+            const index = state.closedProjects.findIndex(p => p.id === id);
+            if(index === -1) return;
+
+            let proj = state.closedProjects[index];
+            const origStatus = proj.status;
+            const origCloseDate = proj.closeDate;
+
+            proj.status = 'active';
+            delete proj.closeDate;
+
+            try {
+                const response = await fetch(`${API_URL}?action=saveProject`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
+                    body: JSON.stringify(proj)
+                });
+                const res = await safeParseJSON(response);
+
+                if(res && res.status === 'success') {
+                    state.projects.push(proj);
+                    state.closedProjects.splice(index, 1);
+                    renderClosed(state.selectedYear);
+                    alert(`專案 [${id}] 已成功還原為進行中專案！`);
+                } else {
+                    proj.status = origStatus;
+                    proj.closeDate = origCloseDate;
+                    alert('還原失敗：' + (res ? res.message : '伺服器回傳格式異常'));
+                }
+            } catch (error) {
+                proj.status = origStatus;
+                proj.closeDate = origCloseDate;
+                alert('網路連線異常，請稍後再試。\n錯誤：' + error.message);
             }
         }
 

@@ -1493,6 +1493,8 @@
                             <button onclick="editTemplateNode('major', ${mIdx})" class="text-indigo-300 hover:text-indigo-600 ml-1 transition-colors" title="編輯名稱"><i class="fa-solid fa-pen text-sm"></i></button>
                         </div>
                         <div class="flex gap-2">
+                            <button onclick="moveTemplateNode('major', -1, ${mIdx})" ${mIdx === 0 ? 'disabled' : ''} class="text-xs bg-white hover:bg-slate-100 text-slate-400 hover:text-indigo-600 px-2 py-1.5 rounded border border-slate-200 transition-colors disabled:opacity-30 disabled:pointer-events-none" title="上移"><i class="fa-solid fa-arrow-up"></i></button>
+                            <button onclick="moveTemplateNode('major', 1, ${mIdx})" ${mIdx === state.templateMajors.length - 1 ? 'disabled' : ''} class="text-xs bg-white hover:bg-slate-100 text-slate-400 hover:text-indigo-600 px-2 py-1.5 rounded border border-slate-200 transition-colors disabled:opacity-30 disabled:pointer-events-none" title="下移"><i class="fa-solid fa-arrow-down"></i></button>
                             <button onclick="addTemplateNode('medium', ${mIdx})" class="text-xs bg-indigo-50 hover:bg-indigo-100 text-indigo-600 px-3 py-1.5 rounded font-bold transition-colors">+ 中類</button>
                             <button onclick="deleteTemplateNode('major', ${mIdx})" class="text-xs bg-white hover:bg-rose-50 text-slate-400 hover:text-rose-500 px-3 py-1.5 rounded border transition-colors border-slate-200"><i class="fa-solid fa-trash-can"></i></button>
                         </div>
@@ -1534,6 +1536,8 @@
                                 </div>
 
                                 <div class="flex gap-2 ml-auto">
+                                    <button onclick="moveTemplateNode('medium', -1, ${mIdx}, ${medIdx})" ${medIdx === 0 ? 'disabled' : ''} class="text-xs bg-white border border-slate-200 hover:bg-slate-100 text-slate-500 hover:text-indigo-600 px-2 py-1 rounded transition-colors disabled:opacity-30 disabled:pointer-events-none" title="上移"><i class="fa-solid fa-arrow-up"></i></button>
+                                    <button onclick="moveTemplateNode('medium', 1, ${mIdx}, ${medIdx})" ${medIdx === maj.mediums.length - 1 ? 'disabled' : ''} class="text-xs bg-white border border-slate-200 hover:bg-slate-100 text-slate-500 hover:text-indigo-600 px-2 py-1 rounded transition-colors disabled:opacity-30 disabled:pointer-events-none" title="下移"><i class="fa-solid fa-arrow-down"></i></button>
                                     <button onclick="addTemplateNode('equip', ${mIdx}, ${medIdx})" class="text-xs bg-white border border-slate-200 hover:bg-slate-100 text-slate-600 px-2 py-1 rounded font-bold transition-colors">+ 設備</button>
                                     <button onclick="deleteTemplateNode('medium', ${mIdx}, ${medIdx})" class="text-xs text-slate-400 hover:text-rose-500 px-2 py-1 transition-colors"><i class="fa-solid fa-xmark"></i></button>
                                 </div>
@@ -1554,6 +1558,8 @@
                                     <button onclick="editTemplateNode('equip', ${mIdx}, ${medIdx}, ${eqIdx})" class="text-slate-300 hover:text-indigo-500 transition-colors" title="編輯名稱"><i class="fa-solid fa-pen text-xs"></i></button>
                                 </div>
                                 <div class="flex gap-2">
+                                    <button onclick="moveTemplateNode('equip', -1, ${mIdx}, ${medIdx}, ${eqIdx})" ${eqIdx === 0 ? 'disabled' : ''} class="text-xs bg-white border border-slate-200 hover:bg-slate-100 text-slate-500 hover:text-indigo-600 px-2 py-1 rounded transition-colors disabled:opacity-30 disabled:pointer-events-none" title="上移"><i class="fa-solid fa-arrow-up"></i></button>
+                                    <button onclick="moveTemplateNode('equip', 1, ${mIdx}, ${medIdx}, ${eqIdx})" ${eqIdx === med.equipments.length - 1 ? 'disabled' : ''} class="text-xs bg-white border border-slate-200 hover:bg-slate-100 text-slate-500 hover:text-indigo-600 px-2 py-1 rounded transition-colors disabled:opacity-30 disabled:pointer-events-none" title="下移"><i class="fa-solid fa-arrow-down"></i></button>
                                     <button onclick="addTemplateNode('detail', ${mIdx}, ${medIdx}, ${eqIdx})" class="text-xs bg-blue-50 text-blue-600 hover:bg-blue-100 px-3 py-1 rounded font-bold transition-colors">+ 細項圖面</button>
                                     <button onclick="deleteTemplateNode('equip', ${mIdx}, ${medIdx}, ${eqIdx})" class="text-xs text-slate-400 hover:text-rose-500 px-2 py-1 transition-colors"><i class="fa-solid fa-xmark"></i></button>
                                 </div>
@@ -1579,6 +1585,8 @@
                                             ${skipAsm ? '<span class="ml-1 text-[10px] font-bold text-orange-500 bg-orange-50 px-1.5 py-0.5 rounded shrink-0">免組裝</span>' : ''}
                                         </div>
                                         <div class="flex gap-2 shrink-0">
+                                            <button onclick="moveTemplateNode('detail', -1, ${mIdx}, ${medIdx}, ${eqIdx}, ${detIdx})" ${detIdx === 0 ? 'disabled' : ''} class="text-slate-400 hover:text-indigo-500 transition-colors disabled:opacity-30 disabled:pointer-events-none" title="上移"><i class="fa-solid fa-arrow-up text-xs"></i></button>
+                                            <button onclick="moveTemplateNode('detail', 1, ${mIdx}, ${medIdx}, ${eqIdx}, ${detIdx})" ${detIdx === eq.details.length - 1 ? 'disabled' : ''} class="text-slate-400 hover:text-indigo-500 transition-colors disabled:opacity-30 disabled:pointer-events-none" title="下移"><i class="fa-solid fa-arrow-down text-xs"></i></button>
                                             <button onclick="editTemplateNode('detail', ${mIdx}, ${medIdx}, ${eqIdx}, ${detIdx})" class="text-slate-400 hover:text-indigo-500 transition-colors" title="編輯名稱"><i class="fa-solid fa-pen text-xs"></i></button>
                                             <button onclick="deleteTemplateNode('detail', ${mIdx}, ${medIdx}, ${eqIdx}, ${detIdx})" class="text-slate-400 hover:text-rose-500 transition-colors" title="刪除"><i class="fa-solid fa-xmark text-xs"></i></button>
                                         </div>
@@ -1683,6 +1691,63 @@
             syncTemplatesToBackend();
         }
 
+        // ★ 模板項目調整順序：大類/中類/設備/細項圖面皆可上移(dir=-1)或下移(dir=1)
+        function moveTemplateNode(type, dir, m, med, eq, det) {
+            let arr, idx;
+            if(type === 'major') { arr = state.templateMajors; idx = m; }
+            else if(type === 'medium') { arr = state.templateMajors[m].mediums; idx = med; }
+            else if(type === 'equip') { arr = state.templateMajors[m].mediums[med].equipments; idx = eq; }
+            else if(type === 'detail') { arr = state.templateMajors[m].mediums[med].equipments[eq].details; idx = det; }
+            else return;
+
+            const newIdx = idx + dir;
+            if(newIdx < 0 || newIdx >= arr.length) return;
+
+            [arr[idx], arr[newIdx]] = [arr[newIdx], arr[idx]];
+
+            renderTemplateTree();
+            syncTemplatesToBackend();
+        }
+
+        // ★ 依「目前模板」的順序，自動排序專案內的大類/中類/設備/細項圖面。
+        // 不論品項是專案建立當下就有的、或是後來透過「匯入模板」「手動新增」加進來的，
+        // 只要名稱能對應到模板內的品項，就會依模板順序排列；
+        // 模板裡已經找不到對應名稱的品項（例如完全自訂新增的品項），
+        // 則維持原本的相對順序、排在同層級最後面，不會被搬動或遺失。
+        function sortMajorsByTemplateOrder(majorsArr) {
+            if(!majorsArr || !state.templateMajors) return;
+
+            const sortByNameOrder = (list, orderedNames) => {
+                const orderMap = new Map();
+                orderedNames.forEach((name, i) => orderMap.set(name, i));
+                list.sort((a, b) => {
+                    const ia = orderMap.has(a.name) ? orderMap.get(a.name) : Infinity;
+                    const ib = orderMap.has(b.name) ? orderMap.get(b.name) : Infinity;
+                    return ia - ib;
+                });
+            };
+
+            sortByNameOrder(majorsArr, state.templateMajors.map(m => m.name));
+
+            majorsArr.forEach(maj => {
+                const tMaj = state.templateMajors.find(t => t.name === maj.name);
+                if(!tMaj) return;
+                sortByNameOrder(maj.mediums, tMaj.mediums.map(m => m.name));
+
+                maj.mediums.forEach(med => {
+                    const tMed = tMaj.mediums.find(t => t.name === med.name);
+                    if(!tMed) return;
+                    sortByNameOrder(med.equipments, tMed.equipments.map(e => e.name));
+
+                    med.equipments.forEach(eq => {
+                        const tEq = tMed.equipments.find(t => t.name === eq.name);
+                        if(!tEq) return;
+                        sortByNameOrder(eq.details, tEq.details.map(d => d.name));
+                    });
+                });
+            });
+        }
+
         // --- 專案詳情頁 (Excel 表格視圖) ---
         function openProjectDetail(projectId, isEditMode, sourceList) {
             let project;
@@ -1694,6 +1759,7 @@
             if(!project) return;
             
             state.tempEditData = JSON.parse(JSON.stringify(project));
+            sortMajorsByTemplateOrder(state.tempEditData.majors);
             state.editingProjectId = projectId;
             state.isEditMode = isEditMode;
             state.hasUnsavedChanges = false; 
@@ -2170,6 +2236,8 @@
                 });
             });
 
+            sortMajorsByTemplateOrder(state.tempEditData.majors);
+
             closeAppendTemplateModal();
             renderPhaseTable(state.activePhaseTab);
             markUnsaved();
@@ -2205,6 +2273,7 @@
             }
 
             if(hasChanged) {
+                sortMajorsByTemplateOrder(state.tempEditData.majors);
                 renderPhaseTable(state.activePhaseTab);
                 markUnsaved(); 
             }

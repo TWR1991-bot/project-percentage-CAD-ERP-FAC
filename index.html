@@ -798,7 +798,7 @@
             <header class="bg-gradient-to-r from-indigo-500 to-purple-600 p-6 flex justify-between items-center text-white shrink-0">
                 <div>
                     <h3 class="text-2xl font-black tracking-tight"><i class="fa-solid fa-cube mr-2"></i>標準模板庫管理</h3>
-                    <p class="text-indigo-100 text-sm mt-1">在這裡定義設備的層級架構與平行資訊，新增專案時即可一鍵帶入。</p>
+                    <p class="text-indigo-100 text-sm mt-1">在這裡定義設備層級、中類生產／出貨開關、細項免組裝等標準設定，新增專案時即可一鍵帶入。</p>
                 </div>
                 <button onclick="closeTemplateModal()" class="w-10 h-10 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center transition-colors">
                     <i class="fa-solid fa-xmark text-xl"></i>
@@ -909,10 +909,12 @@
                                     // 繪圖進度：僅看 [0] 製作圖進度
                                     detDraw += det.drawing[0] ? 100 : 0;
                                     
-                                    // 生產製造：僅看 [1]製作完成, [2]組裝完成, [3]噴漆完成
+                                    // 生產製造：僅看 [1]製作完成, [2]組裝完成, [3]噴漆完成（免組裝則不計組裝完成）
                                     let pChecks = det.production.checks;
-                                    let prodCheckedCount = (pChecks[1]?1:0) + (pChecks[2]?1:0) + (pChecks[3]?1:0);
-                                    detProd += (prodCheckedCount / 3) * 100;
+                                    let prodDivisor = det.skipAssembly ? 2 : 3;
+                                    let prodCheckedCount = (pChecks[1]?1:0) + (pChecks[3]?1:0);
+                                    if (!det.skipAssembly) prodCheckedCount += (pChecks[2]?1:0);
+                                    detProd += (prodCheckedCount / prodDivisor) * 100;
                                     
                                     // 出貨現場：主體, 周邊, 市購品 三者皆算
                                     detShip += (det.shipping.filter(Boolean).length / 3) * 100;
@@ -1151,10 +1153,12 @@
                                 detailsHtml = `<div id="${detailsId}" class="hidden ml-6 mt-1 mb-2 border-l-2 pl-3" style="border-color: var(--c-border);">`;
                                 eq.details.forEach((det, detIdx) => {
                                     let detName = (typeof det === 'string') ? det : (det.name || `圖面 ${detIdx+1}`);
+                                    let detSkipAsm = (typeof det !== 'string') && det.skipAssembly;
                                     detailsHtml += `
                                         <div class="flex items-center gap-1.5 py-1 text-xs" style="color: var(--c-text2);">
                                             <i class="fa-regular fa-file-lines text-[10px]" style="color: var(--c-text3);"></i>
                                             <span>${detName}</span>
+                                            ${detSkipAsm ? '<span class="text-[10px] text-orange-400 bg-orange-50 px-1 rounded">免組裝</span>' : ''}
                                         </div>`;
                                 });
                                 detailsHtml += `</div>`;
@@ -1266,7 +1270,7 @@
                             <i class="fa-solid fa-sitemap"></i>
                         </div>
                         <h3 class="text-2xl font-black mb-2">標準模板庫管理</h3>
-                        <p class="text-indigo-100 mb-8 leading-relaxed text-sm">建立並維護您的標準「大類 > 中類 > 設備 > 細項」樹狀結構，並可預設占比與編號。</p>
+                        <p class="text-indigo-100 mb-8 leading-relaxed text-sm">建立並維護您的標準「大類 > 中類 > 設備 > 細項」樹狀結構，並可預設占比、生產製造／出貨現場開關、細項免組裝等標準設定。</p>
                         
                         <div class="bg-white/10 rounded-2xl p-5 border border-white/20 mb-8 flex-1">
                             <div class="text-center text-indigo-100 text-sm mt-4">
@@ -1358,6 +1362,7 @@
                                 bodyId: templateDet.bodyId || '', 
                                 version: templateDet.version || '', 
                                 qty: templateDet.qty || 1,
+                                skipAssembly: templateDet.skipAssembly === true,
                                 drawing: [false, false, false, false, false, false],
                                 production: { checks: [false, false, false, false], inputs: { material: '', work: '' } },
                                 shipping: [false, false, false]
@@ -1462,10 +1467,13 @@
             } else if (type === 'detail') {
                 if (field === 'qty') {
                     state.templateMajors[m].mediums[med].equipments[eq].details[det][field] = parseInt(value) || 0;
+                } else if (field === 'skipAssembly') {
+                    state.templateMajors[m].mediums[med].equipments[eq].details[det][field] = value;
                 } else {
                     state.templateMajors[m].mediums[med].equipments[eq].details[det][field] = value;
                 }
             }
+            syncTemplatesToBackend();
         }
 
         function renderTemplateTree() {
@@ -1561,14 +1569,16 @@
                             let bId = det.bodyId || '';
                             let ver = det.version || '';
                             let qty = det.qty || 1;
+                            let skipAsm = det.skipAssembly === true;
 
                             html += `
                                 <div class="bg-slate-50 border border-slate-200 p-3 rounded-lg flex flex-col gap-3 relative group/det">
-                                    <div class="flex items-center justify-between">
-                                        <div class="font-bold text-slate-700 text-xs flex items-center gap-1">
+                                    <div class="flex items-center justify-between gap-2">
+                                        <div class="font-bold text-slate-700 text-xs flex items-center gap-1 min-w-0">
                                             <i class="fa-regular fa-file-lines text-slate-400"></i> ${det.name}
+                                            ${skipAsm ? '<span class="ml-1 text-[10px] font-bold text-orange-500 bg-orange-50 px-1.5 py-0.5 rounded shrink-0">免組裝</span>' : ''}
                                         </div>
-                                        <div class="flex gap-2">
+                                        <div class="flex gap-2 shrink-0">
                                             <button onclick="editTemplateNode('detail', ${mIdx}, ${medIdx}, ${eqIdx}, ${detIdx})" class="text-slate-400 hover:text-indigo-500 transition-colors" title="編輯名稱"><i class="fa-solid fa-pen text-xs"></i></button>
                                             <button onclick="deleteTemplateNode('detail', ${mIdx}, ${medIdx}, ${eqIdx}, ${detIdx})" class="text-slate-400 hover:text-rose-500 transition-colors" title="刪除"><i class="fa-solid fa-xmark text-xs"></i></button>
                                         </div>
@@ -1591,6 +1601,10 @@
                                             <input type="number" min="0" value="${qty}" onchange="updateTemplateField('detail', ${mIdx}, ${medIdx}, ${eqIdx}, ${detIdx}, 'qty', this.value)" class="w-full text-xs px-2 py-1.5 border border-slate-200 rounded text-center focus:border-indigo-400 focus:outline-none">
                                         </div>
                                     </div>
+                                    <label class="flex items-center gap-2 text-xs font-bold ${skipAsm ? 'text-orange-600' : 'text-slate-500'} cursor-pointer w-fit">
+                                        <input type="checkbox" ${skipAsm ? 'checked' : ''} onchange="updateTemplateField('detail', ${mIdx}, ${medIdx}, ${eqIdx}, ${detIdx}, 'skipAssembly', this.checked)" class="w-3.5 h-3.5 rounded border-slate-300 text-orange-500 focus:ring-orange-500">
+                                        此細項不需組裝（生產製造「組裝完成」免填）
+                                    </label>
                                 </div>
                             `;
                         });
@@ -1618,13 +1632,13 @@
             let hasChanged = false;
             if(type === 'medium') {
                 name = prompt(`新增「中類」於 [${state.templateMajors[m].name}] 底下：`);
-                if(name && name.trim()) { state.templateMajors[m].mediums.push({ name: name.trim(), weight: 0, equipments: [] }); hasChanged = true; }
+                if(name && name.trim()) { state.templateMajors[m].mediums.push({ name: name.trim(), weight: 0, hasProduction: true, hasShipping: true, equipments: [] }); hasChanged = true; }
             } else if(type === 'equip') {
                 name = prompt(`新增「設備」於 [${state.templateMajors[m].mediums[med].name}] 底下：`);
                 if(name && name.trim()) { state.templateMajors[m].mediums[med].equipments.push({ name: name.trim(), details: [] }); hasChanged = true; }
             } else if(type === 'detail') {
                 name = prompt(`新增「細項圖面」於 [${state.templateMajors[m].mediums[med].equipments[eq].name}] 底下：`);
-                if(name && name.trim()) { state.templateMajors[m].mediums[med].equipments[eq].details.push({ name: name.trim(), assemblyId: '', bodyId: '', version: '', qty: 1 }); hasChanged = true; }
+                if(name && name.trim()) { state.templateMajors[m].mediums[med].equipments[eq].details.push({ name: name.trim(), assemblyId: '', bodyId: '', version: '', qty: 1, skipAssembly: false }); hasChanged = true; }
             }
             if(hasChanged) {
                 renderTemplateTree();
@@ -1988,6 +2002,7 @@
                 rowHtml += `<td class="border-r border-slate-100 px-4 py-3 text-slate-700 font-bold group col-detail">
                                 <div class="flex items-center gap-2 w-full">
                                     <input type="text" value="${det.name}" ${!isEdit ? 'disabled' : ''} onchange="updateDetailField('${pId}', 'name', this.value)" class="flex-1 min-w-0 bg-transparent border-b border-transparent focus:border-indigo-300 focus:outline-none">
+                                    ${det.skipAssembly ? '<span class="text-[10px] font-bold text-orange-500 bg-orange-50 px-1.5 py-0.5 rounded shrink-0">免組裝</span>' : ''}
                                     ${isEdit ? `<button onclick="deleteProjectNode('detail', ${majIdx}, ${medIdx}, ${eqIdx}, ${detIdx})" class="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-rose-500 transition-opacity shrink-0" title="刪除細項"><i class="fa-solid fa-xmark text-sm"></i></button>` : ''}
                                 </div>
                             </td>`;
@@ -2024,10 +2039,21 @@
                         if (firstMed) rowHtml += `<td colspan="6" rowspan="${medRs}" class="border-l border-slate-50 p-4 text-center align-middle bg-slate-50 text-slate-400 font-bold italic text-base">此中類設定為「不需生產製造」</td>`;
                     } else {
                         for(let i=0; i<4; i++) {
+                            if (i === 2 && det.skipAssembly) {
+                                rowHtml += `<td class="border-l border-slate-50 p-2 text-center align-middle col-progress bg-orange-50/30">
+                                                <div class="flex flex-col items-center gap-1">
+                                                    <span class="text-[10px] font-bold text-orange-500 leading-tight">免組裝</span>
+                                                    ${isEdit ? `<button type="button" onclick="toggleSkipAssembly('${pId}', false)" class="text-[10px] text-slate-400 hover:text-orange-600 font-bold underline">恢復</button>` : ''}
+                                                </div>
+                                            </td>`;
+                                continue;
+                            }
                             let checked = det.production.checks[i] ? 'checked' : '';
+                            let skipBtn = (i === 2 && isEdit) ? `<button type="button" onclick="toggleSkipAssembly('${pId}', true)" class="mt-1 text-[10px] text-slate-400 hover:text-orange-600 font-bold leading-tight" title="標記此細項不需組裝">關閉</button>` : '';
                             rowHtml += `<td class="border-l border-slate-50 p-2 text-center align-middle col-progress bg-${colorBase}-50/10 hover:bg-${colorBase}-50/40 transition-colors">
-                                            <div class="flex justify-center">
+                                            <div class="flex flex-col items-center justify-center">
                                                 <input type="checkbox" ${checked} ${!isEdit ? 'disabled' : ''} onchange="toggleCheck('${pId}', 'prod', ${i}, this.checked)" class="w-5 h-5 text-${colorBase}-500 rounded border-slate-300 focus:ring-${colorBase}-500 cursor-pointer shadow-sm">
+                                                ${skipBtn}
                                             </div>
                                         </td>`;
                         }
@@ -2133,6 +2159,7 @@
                                 bodyId: templateDet.bodyId || '', 
                                 version: templateDet.version || '', 
                                 qty: templateDet.qty || 1,
+                                skipAssembly: templateDet.skipAssembly === true,
                                 drawing: [false, false, false, false, false, false],
                                 production: { checks: [false, false, false, false], inputs: { material: '', work: '' } },
                                 shipping: [false, false, false]
@@ -2159,7 +2186,7 @@
                 name = prompt(`新增「細項圖面」於 [${state.tempEditData.majors[m].mediums[med].equipments[eq].name}] 底下：`);
                 if(name && name.trim()) { 
                     state.tempEditData.majors[m].mediums[med].equipments[eq].details.push({ 
-                        name: name.trim(), assemblyId: '', bodyId: '', version: '', qty: 1,
+                        name: name.trim(), assemblyId: '', bodyId: '', version: '', qty: 1, skipAssembly: false,
                         drawing: [false, false, false, false, false, false],
                         production: { checks: [false, false, false, false], inputs: { material: '', work: '' } },
                         shipping: [false, false, false]
@@ -2240,6 +2267,14 @@
             if (phase === 'prod') detail.production.checks[idx] = isChecked;
             if (phase === 'ship') detail.shipping[idx] = isChecked;
             markUnsaved();
+        }
+
+        function toggleSkipAssembly(pId, skip) {
+            const detail = getDetailObj(pId);
+            detail.skipAssembly = skip;
+            if (skip) detail.production.checks[2] = false;
+            markUnsaved();
+            renderPhaseTable('production');
         }
 
         function selectAllShipping(pId) {

@@ -2692,26 +2692,36 @@
             }
         }
 
-        async function fetchInitialData() {
+        // ★ 載入資料：自動重試 3 次（GAS 冷啟動 / 偶發逾時很常見），每次最多等 40 秒
+        async function fetchInitialData(attempt = 1) {
+            const MAX_ATTEMPTS = 3;
+            const ctrl = new AbortController();
+            const timer = setTimeout(() => ctrl.abort(), 40000);
             try {
-                const response = await fetch(`${API_URL}?action=getInitialData`);
+                const response = await fetch(`${API_URL}?action=getInitialData&_t=${Date.now()}`, { signal: ctrl.signal });
+                clearTimeout(timer);
                 const result = await safeParseJSON(response);
-                
-                if(result.status === 'success') {
-                    state.projects = result.data.projects || [];
-                    state.closedProjects = result.data.closedProjects || [];
-                    state.templateMajors = result.data.templateMajors || [];
-                    
-                    const loader = document.getElementById('global-loader');
-                    loader.classList.add('opacity-0');
-                    setTimeout(() => loader.classList.add('hidden'), 500);
+                if (result.status !== 'success') throw new Error(result.message || '伺服器回傳異常');
 
-                    switchTab('dashboard'); 
-                } else {
-                    alert("載入資料庫失敗，請確認 API 網址是否正確。錯誤：" + result.message);
+                state.projects = result.data.projects || [];
+                state.closedProjects = result.data.closedProjects || [];
+                state.templateMajors = result.data.templateMajors || [];
+
+                const loader = document.getElementById('global-loader');
+                loader.classList.add('opacity-0');
+                setTimeout(() => loader.classList.add('hidden'), 500);
+                switchTab('dashboard');
+            } catch (e) {
+                clearTimeout(timer);
+                const msg = e.name === 'AbortError' ? '連線逾時（超過 40 秒）' : e.message;
+                console.error(`載入失敗（第 ${attempt} 次）：`, e);
+                if (attempt < MAX_ATTEMPTS) {
+                    await new Promise(r => setTimeout(r, 1500 * attempt));
+                    return fetchInitialData(attempt + 1);
                 }
-            } catch(e) {
-                alert("網路錯誤，無法連線至 Google Sheets：" + e.message);
+                if (confirm(`載入資料庫失敗（已自動重試 ${MAX_ATTEMPTS} 次）\n原因：${msg}\n\n是否再試一次？`)) {
+                    return fetchInitialData(1);
+                }
             }
         }
 

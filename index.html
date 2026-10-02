@@ -724,6 +724,7 @@
                     <div>
                         <span id="detail-project-id" class="text-sm font-bold text-indigo-500 bg-indigo-50 px-2 py-1 rounded-lg mr-2"></span>
                         <h3 id="detail-project-name" class="text-2xl font-black inline-block tracking-tight">專案編輯</h3>
+                        <div id="detail-project-deadline" class="mt-1.5"></div>
                     </div>
                 </div>
                 
@@ -986,6 +987,55 @@
         }
 
         // --- 戰情室 ---
+        // ===== 完工期限工具（每次呼叫都以「當天日期」為基準）=====
+        const DEADLINE_WARN_DAYS = 90;
+        function parseLocalDate(str) {
+            const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(str || '');
+            return m ? new Date(+m[1], +m[2] - 1, +m[3]) : null;
+        }
+        function getDaysLeft(deadline) {
+            const d = parseLocalDate(deadline);
+            if (!d) return null;
+            const now = new Date();
+            const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            return Math.round((d - today) / 86400000);
+        }
+        // 回傳徽章 HTML；isClosed=true 時只顯示日期，不做紅色警示
+        function renderDeadlineBadge(deadline, isClosed = false) {
+            if (!deadline) {
+                return `<span class="text-sm font-bold text-slate-300"><i class="fa-regular fa-calendar mr-1"></i> 完工期限：未設定</span>`;
+            }
+            const days = getDaysLeft(deadline);
+            if (isClosed || days === null) {
+                return `<span class="text-sm font-bold text-slate-400"><i class="fa-regular fa-calendar mr-1"></i> 完工期限：${deadline}</span>`;
+            }
+            const urgent = days <= DEADLINE_WARN_DAYS;
+            const note = days < 0 ? `已逾期 ${-days} 天` : (days === 0 ? '今天到期' : `剩 ${days} 天`);
+            const cls = urgent
+                ? 'text-rose-600 bg-rose-50 border border-rose-200'
+                : 'text-slate-500 bg-slate-50 border border-slate-100';
+            return `<span class="inline-flex items-center gap-1 text-sm font-bold px-2 py-0.5 rounded-lg ${cls}"><i class="fa-regular fa-calendar${urgent ? '-xmark' : ''}"></i> 完工期限：${deadline}（${note}）</span>`;
+        }
+        function renderDetailDeadline() {
+            const el = document.getElementById('detail-project-deadline');
+            if (!el || !state.tempEditData) return;
+            const dl = state.tempEditData.deadline || '';
+            if (state.isEditMode) {
+                el.innerHTML = `
+                    <label class="text-xs font-bold text-slate-400 mr-1">完工期限</label>
+                    <input type="date" value="${dl}" onchange="updateProjectDeadline(this.value)" class="border border-slate-200 rounded-lg px-2 py-1 text-sm font-bold text-slate-700 bg-white focus:outline-none focus:border-indigo-400">
+                    <span id="detail-deadline-badge" class="ml-2">${dl ? renderDeadlineBadge(dl) : ''}</span>`;
+            } else {
+                el.innerHTML = renderDeadlineBadge(dl, state.tempEditData.status === 'closed');
+            }
+        }
+        function updateProjectDeadline(val) {
+            state.tempEditData.deadline = val || '';
+            const b = document.getElementById('detail-deadline-badge');
+            if (b) b.innerHTML = val ? renderDeadlineBadge(val) : '';
+            markUnsaved();
+        }
+
         function renderDashboard() {
             let html = '<div class="flex flex-col gap-8">';
             AREAS.forEach(area => {
@@ -1012,6 +1062,7 @@
                                 <div class="min-w-0 pr-2">
                                     <span class="text-sm font-bold ${theme.tagText} ${theme.tagBg} px-2 py-1 rounded-md">${project.id}</span>
                                     <h4 class="font-black text-lg text-slate-800 mt-2 tracking-tight truncate" title="${project.name}">${project.name}</h4>
+                                    <div class="mt-1.5">${renderDeadlineBadge(project.deadline)}</div>
                                 </div>
                                 <div class="relative w-14 h-14 flex items-center justify-center shrink-0">
                                     <svg class="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
@@ -1103,6 +1154,7 @@
                         <div class="bg-slate-50 border border-slate-100 p-5 rounded-2xl hover-lift relative group transition-all hover:bg-white hover:border-slate-200 flex flex-col h-full">
                             <span class="text-sm ${theme.tagBg} ${theme.tagText} px-2 py-1 rounded border border-slate-200 font-bold w-max">${p.id}</span>
                             <h4 class="font-black text-xl text-slate-600 mt-2 mb-3 tracking-tight truncate" title="${p.name}">${p.name}</h4>
+                            <div class="mb-2">${renderDeadlineBadge(p.deadline, true)}</div>
                             <div class="text-sm text-slate-400 mb-4 font-medium"><i class="fa-regular fa-calendar-check mr-1"></i> 結案時間: ${p.closeDate}</div>
                             <div class="flex gap-2 mt-auto">
                                 <button onclick="openProjectDetail('${p.id}', false, 'closed')" class="flex-1 py-2.5 text-sm bg-slate-700 hover:bg-slate-800 text-white rounded-xl font-bold transition-all shadow-sm">
@@ -1248,6 +1300,10 @@
                             <label class="block text-xs font-bold text-slate-500 mb-1">專案名稱</label>
                             <input type="text" id="new-proj-name" placeholder="輸入易懂的專案名稱" class="w-full border border-slate-200 rounded-xl px-4 py-2.5 bg-slate-50 focus:bg-white focus:outline-none focus:border-indigo-400 font-bold text-slate-700">
                         </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 mb-1">完工期限 <span class="text-slate-400 font-normal">(西元年/月/日，可留空)</span></label>
+                            <input type="date" id="new-proj-deadline" class="w-full border border-slate-200 rounded-xl px-4 py-2.5 bg-slate-50 focus:bg-white focus:outline-none focus:border-indigo-400 font-bold text-slate-700">
+                        </div>
                         
                         <div class="flex-1 flex flex-col min-h-[200px]">
                             <div class="flex justify-between items-end mb-1">
@@ -1327,6 +1383,7 @@
             const idVal = document.getElementById('new-proj-id').value.trim().toUpperCase();
             const nameVal = document.getElementById('new-proj-name').value.trim();
             const areaVal = document.getElementById('new-proj-area').value;
+            const deadlineVal = document.getElementById('new-proj-deadline').value;
 
             if(!idVal || !nameVal || areaVal === '格式錯誤' || areaVal === '') {
                 alert('請確實填寫正確的專案編號 (首碼A/B/C/D) 與專案名稱！');
@@ -1395,6 +1452,7 @@
             const newProject = {
                 id: idVal,
                 name: nameVal,
+                deadline: deadlineVal,
                 area: areaVal,
                 status: 'active',
                 majors: newMajors
@@ -1793,6 +1851,7 @@
                 ${isEditMode ? `<button onclick="editProjectName()" class="ml-2 text-slate-300 hover:text-indigo-600 transition-colors align-middle" title="修改專案名稱"><i class="fa-solid fa-pen text-lg"></i></button>` : ''}
             `;
             
+            renderDetailDeadline();
             const saveBtn = document.getElementById('btn-save-detail');
             const pdfBtn = document.getElementById('btn-export-pdf');
             

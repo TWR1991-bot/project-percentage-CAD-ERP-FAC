@@ -3035,7 +3035,8 @@ function computeCategory(cfg, proj, catKey){
     list.forEach((d,idx)=>{
       const key=`${m.name}#${idx}`;
       const ln=lines[key]||(idx===0?lines[m.name]:null)||{};
-      const row={equip:m.name,idx,count:list.length,key,part:d?(d['部位']||''):'',missing:!d,values:{},qty:{},calc:{},overridden:{},unit:(d&&d['單位'])||cat.unit,track:ln};
+      const blank=d&&cat.fields.every(f=>!String(d[f]||'').trim());
+      const row={equip:m.name,idx,count:list.length,key,part:d?(d['部位']||''):'',missing:!d||blank,values:{},qty:{},calc:{},overridden:{},unit:(d&&d['單位'])||cat.unit,track:ln};
       cat.fields.forEach(f=>{ if(!cat.qtyFields.includes(f)) row.values[f]=d?d[f]:''; });
       cat.qtyFields.forEach(f=>{
         const per=d?toNum(d[f]):null; const q=e.qty;
@@ -3316,12 +3317,21 @@ function ownerParts(item){
 }
 let _selCache=new WeakMap();
 function selCached(s){ let v=_selCache.get(s); if(!v){ v=schedSel(s); _selCache.set(s,v); } return v; }
+// 明細若不符合任何採購項目的關鍵字（例如資料庫規格空白），改由名稱含類別的項目負責（例：抽水馬達）
+function noKeywordMatch(key,r){
+  const t=rowText(r);
+  return !S.cfg.scheduleItems.some(c=>parseLink(c.link).some(pt=>pt.type==='cat'&&pt.head===key&&pt.kws.length&&pt.kws.some(k=>t.includes(norm(k)))));
+}
 function rowExcluded(key,r){
   const sc=(S.proj&&S.proj.schedule)||[]; let owners=0, on=0;
+  const loose=noKeywordMatch(key,r);
   sc.forEach(s=>{
+    const c=schedCfg(s.item);
     ownerParts(s.item).forEach(pt=>{
       if(pt.head!==key) return;
-      if(pt.kws.length&&!pt.kws.some(k=>rowText(r).includes(norm(k)))) return;
+      if(pt.kws.length&&!pt.kws.some(k=>rowText(r).includes(norm(k)))){
+        if(!(loose&&c&&norm(c.item).includes(norm(key)))) return;
+      }
       owners++; if(selCached(s).v==='V') on++;
     });
   });
@@ -3374,7 +3384,8 @@ function linkHit(link){
     } else {
       const kws=raw.split(/[\/／|]/).map(x=>x.trim()).filter(Boolean);
       rowsRaw(head).forEach(r=>{
-        if(!kws.length||kws.some(k=>norm(Object.values(r.values||{}).join(' ')+' '+(r.part||'')).includes(norm(k)))) hits.push(r.equip);
+        const t=norm(Object.values(r.values||{}).join(' ')+' '+(r.part||''));
+        if(!kws.length||kws.some(k=>t.includes(norm(k)))||(S._linkItem&&norm(S._linkItem).includes(norm(head))&&noKeywordMatch(head,r))) hits.push(r.equip);
       });
     }
   });
@@ -3382,7 +3393,7 @@ function linkHit(link){
 }
 // 時程表列的有效選配：有連動者自動判斷，除非使用者手動改過
 function schedSel(r){
-  const cfg=schedCfg(r.item); const hit=cfg?linkHit(cfg.link):null;
+  const cfg=schedCfg(r.item); S._linkItem=cfg?cfg.item:''; const hit=cfg?linkHit(cfg.link):null; S._linkItem='';
   if(hit===null) return {v:r.sel==='V'?'V':'',mode:'manual',hit:null,cfg};
   const auto=hit.length?'V':'';
   if(r.selManual) return {v:r.sel==='V'?'V':'',mode:(r.sel==='V'?'V':'')===auto?'auto':'override',auto,hit,cfg};
